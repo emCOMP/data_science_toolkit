@@ -40,17 +40,34 @@ rumor_terms = {
     },
     'gunmen':
     {
-        '$and':[
-            {'text':re.compile('gunmen',re.IGNORECASE)},
+        '$or':[
             {
-                '$or':[
-                    {'text':re.compile(' 2',re.IGNORECASE)},
-                    {'text':re.compile('2 ',re.IGNORECASE)},
-                    {'text':re.compile(' 3',re.IGNORECASE)},
-                    {'text':re.compile('3 ',re.IGNORECASE)},
-                    {'text':re.compile('two',re.IGNORECASE)},
-                    {'text':re.compile('three',re.IGNORECASE)},
-                    {'text':re.compile('multiple',re.IGNORECASE)}
+                '$and':[
+                    {'text':re.compile('gunman',re.IGNORECASE)},
+                    {
+                        '$or':[
+                            {'text':re.compile('single',re.IGNORECASE)},
+                            {'text':re.compile('one',re.IGNORECASE)},
+                            {'text':re.compile(' 1 ',re.IGNORECASE)},
+                            {'text':re.compile('only',re.IGNORECASE)},
+                        ]
+                    }
+                ]
+            },
+            {
+                '$and':[
+                    {'text':re.compile('gunmen',re.IGNORECASE)},
+                    {
+                        '$or':[
+                            {'text':re.compile(' 2',re.IGNORECASE)},
+                            {'text':re.compile('2 ',re.IGNORECASE)},
+                            {'text':re.compile(' 3',re.IGNORECASE)},
+                            {'text':re.compile('3 ',re.IGNORECASE)},
+                            {'text':re.compile('two',re.IGNORECASE)},
+                            {'text':re.compile('three',re.IGNORECASE)},
+                            {'text':re.compile('multiple',re.IGNORECASE)},
+                        ]
+                    }
                 ]
             }
         ]
@@ -66,7 +83,8 @@ rumor_terms = {
     {
         '$or':[
             {'text':re.compile('suicide',re.IGNORECASE)},
-            {'text':re.compile('belts',re.IGNORECASE)}
+            {'text':re.compile('belt',re.IGNORECASE)},
+            {'text':re.compile('vest',re.IGNORECASE)}
         ]
     },
     'airspace':
@@ -86,4 +104,8 @@ rumor_terms = {
             {'text':re.compile('tweet',re.IGNORECASE)},
         ]
     },
+    'priest':
+    {
+        'text':re.compile('priest',re.IGNORECASE)
+    }
 }

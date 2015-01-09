@@ -7,6 +7,11 @@ def write_to_data(path=''):
     f = open(fpath, 'w')
     return f
 
+def write_to_samples(path=''):
+    fpath = os.path.join(os.path.dirname(__file__),os.pardir,'samples/') + path
+    f = open(fpath, 'w')
+    return f
+
 def mongo_connect(db_name,collection_name=None):
     dbclient = MongoClient('z')
     mongo = dbclient[db_name]

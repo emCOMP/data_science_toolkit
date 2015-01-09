@@ -104,7 +104,7 @@ def create_sample(rumor_list,db=None,dbs=None,num=0,start=0,scrub_url=True,old=F
     print 'enter a valid file name:'
     fname_in = raw_input('>> ')
     title = "%s.csv" % (fname_in)
-    f = utils.write_to_data(path=title)
+    f = utils.write_to_samples(path=title)
     f.write('"db_id","rumor","id","text"\n')
 
     for rumor in rumor_list:
@@ -154,7 +154,7 @@ def main():
     dbs = [utils.mongo_connect(db_name='sydneysiege')]
     cache_name = 'sydneysiege_cache'
 
-    rumor_list=['airspace',]
+    rumor_list=['gunmen',]
     for db in dbs:
         compress_tweets(db=db,rumor_list=rumor_list,cache_name=cache_name)
     create_sample(rumor_list=rumor_list,db=cache_name,dbs=dbs)
