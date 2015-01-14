@@ -107,5 +107,12 @@ rumor_terms = {
     'priest':
     {
         'text':re.compile('priest',re.IGNORECASE)
+    },
+    'hadley':
+    {
+        '$or':[
+            {'text':re.compile('hadley',re.IGNORECASE)},
+            {'text':re.compile('radio host',re.IGNORECASE)}
+        ]
     }
 }
