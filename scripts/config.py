@@ -110,9 +110,14 @@ rumor_terms = {
     },
     'hadley':
     {
-        '$or':[
+        '$and':[
             {'text':re.compile('hadley',re.IGNORECASE)},
-            {'text':re.compile('radio host',re.IGNORECASE)}
+            {
+                '$or':[
+                    {'text':re.compile('hostage',re.IGNORECASE)},
+                    {'text':re.compile('radio host',re.IGNORECASE)}
+                ]
+            }
         ]
     }
 }

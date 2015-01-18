@@ -30,22 +30,21 @@ def _create_sample_old(rumor,num,db,f,scrub_url=True):
 
     count = 0
     result = []
-    while len(result) <= num:
-        for tweet in random.sample(tweet_list,num):
-            text = _scrub_tweet(text=tweet['text'],scrub_url=True)
-            unique = True
-            for y in result:
-                if nltk.metrics.edit_distance(text,y) < 20:
-                    unique = False
-            if unique is True:
-                result.append(text)
-                out = '"%s","%s","%s",\n' % (rumor,
-                                             tweet['id'],
-                                             tweet['text'].replace('"',''))
-                f.write(out.encode('utf-8'))
-                count += 1
-            if count >= num:
-                break
+    for tweet in random.sample(tweet_list,num):
+        text = _scrub_tweet(text=tweet['text'],scrub_url=True)
+        unique = True
+        for y in result:
+            if nltk.metrics.edit_distance(text,y) < 20:
+                unique = False
+        if unique is True:
+            result.append(text)
+            out = '"%s","%s","%s",\n' % (rumor,
+                                         tweet['id'],
+                                         tweet['text'].replace('"',''))
+            f.write(out.encode('utf-8'))
+            count += 1
+        if count >= num:
+            break
 
     return result
 
@@ -134,7 +133,7 @@ def main():
     cache_name = 'sydneysiege_cache'
 
     # list of the rumors names.  check config.py for rumor names
-    rumor_list=['gunmen',]
+    rumor_list=['hadley',]
 
     # uncomment this code to compress tweets and create a full sample
     #for db in dbs:
