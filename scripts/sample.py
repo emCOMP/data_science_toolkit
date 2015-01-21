@@ -30,7 +30,7 @@ def _create_sample_old(rumor,num,db,f,scrub_url=True):
 
     count = 0
     result = []
-    for tweet in random.sample(tweet_list,num):
+    for tweet in tweet_list:
         text = _scrub_tweet(text=tweet['text'],scrub_url=True)
         unique = True
         for y in result:
@@ -136,12 +136,12 @@ def main():
     rumor_list=['hadley',]
 
     # uncomment this code to compress tweets and create a full sample
-    #for db in dbs:
-    #    compress_tweets(db=db,rumor_list=rumor_list,cache_name=cache_name)
-    #create_sample(rumor_list=rumor_list,db=cache_name,dbs=dbs)
+    for db in dbs:
+        compress_tweets(db=db,rumor_list=rumor_list,cache_name=cache_name)
+    create_sample(rumor_list=rumor_list,db=cache_name,dbs=dbs)
 
     # uncomment this code to create a random sample.
-    create_sample(rumor_list=rumor_list,db=db,num=300,scrub_url=True,old=True)
+    #create_sample(rumor_list=rumor_list,db=db,num=200,scrub_url=True,old=True)
 
 if __name__ == "__main__":
     main()
