@@ -126,5 +126,9 @@ rumor_terms = {
             {'text':re.compile('phone',re.IGNORECASE)},
             {'text':re.compile('hostage',re.IGNORECASE)},
         ]
+    },
+    'lakemba':
+    {
+        'text':re.compile('lakemba',re.IGNORECASE)
     }
 }

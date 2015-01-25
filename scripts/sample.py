@@ -4,6 +4,9 @@ import utils,random,re,nltk,os,csv,config
 def _find_tweets(db,rumor):
     query = config.rumor_terms[rumor]
     tweet_list = db.find(query)
+    print rumor
+    print query
+    print tweet_list.count()
     print 'finished query'
     return tweet_list
 
@@ -133,7 +136,7 @@ def main():
     cache_name = 'sydneysiege_cache'
 
     # list of the rumors names.  check config.py for rumor names
-    rumor_list=['hadley',]
+    rumor_list=['lakemba',]
 
     # uncomment this code to compress tweets and create a full sample
     for db in dbs:
