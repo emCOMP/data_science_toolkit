@@ -34,6 +34,27 @@ def adjudicate():
     fname_out = os.path.join(os.path.dirname(__file__),os.pardir,'samples/') + fname_out
     process(in_name=fname_in,out_name=fname_out)
 
+def adjudicate_file(db,coders):
+    tweets = db.find()
+    final = []
+    for tweet in tweets:
+        if float(tweet.get('Implicit',0))/coders > .5:
+            final.append('Implicit')
+        if float(tweet.get('Uncertainty',0))/coders > .5:
+            final.append('Uncertainty')
+        first = ['Affirm','Deny','Neutral (use sparingly)','Uncodable','Unrelated']
+        first.sort(key=lambda x: tweet.get(x,0), reverse=True)
+        if first[0] != 0:
+            final.append(first[0])
+        db.update({'id':tweet['id']},
+                  {'$addToSet':{
+                      'final':{
+                          '$each':final
+                      }
+                  }
+               }
+        )
+
 def read_codes(dir_in,db):
     for filename in os.listdir(dir_in):
         path = dir_in + filename

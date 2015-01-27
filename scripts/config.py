@@ -83,8 +83,9 @@ rumor_terms = {
     {
         '$or':[
             {'text':re.compile('suicide',re.IGNORECASE)},
-            {'text':re.compile('belt',re.IGNORECASE)},
-            {'text':re.compile('vest',re.IGNORECASE)}
+            {'text':re.compile(' belt',re.IGNORECASE)},
+            {'text':re.compile(' vest',re.IGNORECASE)},
+            {'text':re.compile('backpack',re.IGNORECASE)},
         ]
     },
     'airspace':
@@ -101,7 +102,20 @@ rumor_terms = {
     {
         '$and':[
             {'text':re.compile('police',re.IGNORECASE)},
-            {'text':re.compile('tweet',re.IGNORECASE)},
+            {
+                '$or':[
+                    {'text':re.compile('ask',re.IGNORECASE)},
+                    {'text':re.compile('request',re.IGNORECASE)}
+                ]
+            },
+            {
+                '$or':[
+                    {'text':re.compile('tweet',re.IGNORECASE)},
+                    {'text':re.compile('post',re.IGNORECASE)},
+                    {'text':re.compile('social media',re.IGNORECASE)},
+                    {'text':re.compile('share',re.IGNORECASE)}
+                ]
+            }
         ]
     },
     'priest':
@@ -125,6 +139,13 @@ rumor_terms = {
         '$and':[
             {'text':re.compile('phone',re.IGNORECASE)},
             {'text':re.compile('hostage',re.IGNORECASE)},
+        ]
+    },
+    'lakemba':
+    {
+        '$and':[
+            {'text':re.compile('lakemba',re.IGNORECASE)},
+            {'text':re.compile('^((?!vigil).)*$',re.IGNORECASE)},
         ]
     }
 }
