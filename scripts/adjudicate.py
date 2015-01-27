@@ -50,10 +50,10 @@ def read_codes(dir_in,db):
                     tweet_id = None
                     tweet_text = None
                     for count,col in enumerate(row):
-                        if header[count] == 'id':
+                        if header[count] == 'db_id':
                             tweet_id = col
-                        #if header[count] == 'text':
-                        #    tweet_text = col.decode()
+                        if header[count] == 'text':
+                            tweet_text = col.decode('latin-1').encode('utf-8')
                         if col is not '' and header[count] != 'text' and header[count] != 'rumor' and header[count] != 'id':
                             codes[header[count]] = codes.get(header[count],0) + 1
                     if tweet_id:
@@ -86,12 +86,13 @@ def agreement_sheet(db,coders):
     print 'enter a valid output file name:'
     fname_out = raw_input('>> ')
     f_out = utils.write_to_samples(path=fname_out)
-    codes  = ['id','text','Uncodable','Unrelated','Affirm','Deny','Neutral','Ambiguity','Uncertainty','Difficult']
+    codes  = ['id','text','Uncodable','Unrelated','Affirm','Deny','Neutral','Implict','Ambiguity','Uncertainty','Difficult']
     for header in codes:
-        f_out.write(',"%s"' % header)
+        f_out.write('"%s",' % header)
     f_out.write('\n')
     tweets = db.find()
     for tweet in tweets:
+        print tweet
         result = ''
         agreement = True
         for code in codes:
@@ -100,7 +101,6 @@ def agreement_sheet(db,coders):
                     result += ('"%s",' % tweet[code].encode('utf-8'))
                 else:
                     result += (str(tweet[code]) + ',')
-                    print result
                     if float(tweet[code])/coders < .7:
                         agreement = False
             else:
@@ -112,11 +112,12 @@ def agreement_sheet(db,coders):
 def main():
     #adjudicate()
     codes = ['Uncodable','Unrelated','Affirm','Deny','Neutral']
+    alt_codes = ['Affirm']
     rumor = 'hadley'
     db = utils.mongo_connect(db_name='code_comparison',collection_name=rumor)
-    read_codes('../codes/',db=db)
-    coder_agreement(db=db,coders=9,codes=codes)
-    #agreement_sheet(db=db,coders=9)
+    #read_codes('/home/jim/Dropbox/research/starbird_research/coding/group3/',db=db)
+    #coder_agreement(db=db,coders=2,codes=alt_codes)
+    agreement_sheet(db=db,coders=2)
 
 if __name__ == "__main__":
     main()
