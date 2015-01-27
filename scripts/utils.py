@@ -13,7 +13,7 @@ def write_to_samples(path=''):
     return f
 
 def mongo_connect(db_name,collection_name=None):
-    dbclient = MongoClient('z')
+    dbclient = MongoClient()
     mongo = dbclient[db_name]
     if collection_name is None:
         db = mongo.tweets
