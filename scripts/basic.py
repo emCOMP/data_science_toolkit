@@ -81,6 +81,50 @@ def multi_feature_over_time(db,feature,names):
         fname = 'hashtag_%s_over_time' % name
         feature_over_time(db=db,fname=fname,feature='hashtag',name=name,gran='hour')
 
+def codes_over_time(db_name,codes,rumor,gran='hour'):
+    db = utils.mongo_connect(db_name=db_name,collection_name=rumor)
+    for code in codes:
+        fname = '%s_%s_over_time' % (rumor,code)
+        _codes_over_time(db=db,fname=fname,code=code,gran=gran)
+
+def _codes_over_time(db,fname,code,gran):
+    title = "%s.csv" % (fname)
+    f = utils.write_to_data(path=title)
+    f.write('time,total tweets\n')
+    if gran == 'hour':
+        start = db.find().limit(1).sort('created_ts',1).next()['created_ts'].replace(minute=0,second=0)
+        end = db.find().limit(1).sort('created_ts',-1).next()['created_ts'].replace(minute=0,second=0) + datetime.timedelta(hours=1)
+        diff = (end - start).days * 24 #1440 for hour
+        for date_start in (start + datetime.timedelta(hours=n) for n in range(diff)):
+            date_end = date_start + datetime.timedelta(minutes=59)
+            raw_data = db.find({
+                "created_ts":{
+                    "$gte":date_start,
+                    "$lte":date_end
+                },
+                'codes.code':code
+            }).count()
+
+            result = '"%s",%d\n' % (date_start,raw_data)
+            f.write(result)
+
+    elif gran == 'minute':
+        start = db.find().limit(1).sort('created_ts',1).next()['created_ts'].replace(second=0)
+        end = db.find().limit(1).sort('created_ts',-1).next()['created_ts'].replace(second=0) + datetime.timedelta(minutes=1)
+        diff = (end - start).days * 1440
+        for date_start in (start + datetime.timedelta(minutes=n) for n in range(diff)):
+            date_end = date_start + datetime.timedelta(seconds=59)
+            raw_data = db.find({
+                "created_ts":{
+                    "$gte":date_start,
+                    "$lte":date_end
+                },
+                'codes.code':code
+            }).count()
+
+            result = '"%s",%d\n' % (date_start,raw_data)
+            f.write(result)
+
 def top_hashtags(db,top,fname=None,write=False):
     if write:
         title = "%s.csv" % (fname)
@@ -185,13 +229,15 @@ def cooccuring_hashtags(db,num_top_nodes,num_co_nodes,fname=None,write=False):
 
 def main():
     db = utils.mongo_connect(db_name='sydneysiege')
-
-    #total_tweets_over_time(db=db,fname='total_tweets_over_time_ebola_2')
+    db_name = 'sydneysiege'
+    codes = ['Affirm','Deny','Neutral']
+    total_tweets_over_time(db=db,fname='total_tweets_over_time_sydneysiege')
     #top_hashtags(db=db,top=100,fname='top_hashtags_ebola',write=True)
     #top_mentions(db=db,top=1000,fname='sydneysiege_top_mentions',write=True)
     #cooccuring_hashtags(db=db,num_top_nodes=100,num_co_nodes=100,fname='cooccuring_sydneysiege_1000',write=True)
     #feature_over_time(db=db,fname='tcot2_over_time',feature='hashtag',name='tcot',gran='hour')
-    multi_feature_over_time(db=db,feature='hashtag',names=['illridewithyou',
+    codes_over_time(db_name=db_name,codes=codes,rumor='hadley',gran='minute')
+    '''multi_feature_over_time(db=db,feature='hashtag',names=['illridewithyou',
                                                            'martinplace',
                                                            'prayforsydney',
                                                            '9news',
@@ -201,6 +247,7 @@ def main():
                                                            'isis',
                                                            'news',
                                                            'tcot'])
+    '''
 
 if __name__ == "__main__":
     main()

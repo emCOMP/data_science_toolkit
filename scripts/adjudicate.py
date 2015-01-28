@@ -34,19 +34,21 @@ def adjudicate():
     fname_out = os.path.join(os.path.dirname(__file__),os.pardir,'samples/') + fname_out
     process(in_name=fname_in,out_name=fname_out)
 
-def adjudicate_file(db,coders):
+def adjudicate_db(db,coders):
     tweets = db.find()
-    final = []
     for tweet in tweets:
+        final = []
         if float(tweet.get('Implicit',0))/coders > .5:
             final.append('Implicit')
         if float(tweet.get('Uncertainty',0))/coders > .5:
             final.append('Uncertainty')
         first = ['Affirm','Deny','Neutral (use sparingly)','Uncodable','Unrelated']
         first.sort(key=lambda x: tweet.get(x,0), reverse=True)
-        if first[0] != 0:
+        if tweet.get(first[0],0) > .5:
             final.append(first[0])
-        db.update({'id':tweet['id']},
+        else:
+            final.append('Adjudicate')
+        db.update({'db_id':tweet['db_id']},
                   {'$addToSet':{
                       'final':{
                           '$each':final
@@ -75,11 +77,11 @@ def read_codes(dir_in,db):
                             tweet_id = col
                         if header[count] == 'text':
                             tweet_text = col.decode('latin-1').encode('utf-8')
-                        if col is not '' and header[count] != 'text' and header[count] != 'rumor' and header[count] != 'id':
+                        if col is not '' and header[count] != 'text' and header[count] != 'rumor' and header[count] != 'id' and header[count] != 'db_id':
                             codes[header[count]] = codes.get(header[count],0) + 1
                     if tweet_id:
                         db.update(
-                            {'id':tweet_id,'text':tweet_text},
+                            {'db_id':tweet_id,'text':tweet_text},
                             {'$inc':codes},
                             upsert=True
                         )
@@ -135,10 +137,13 @@ def main():
     codes = ['Uncodable','Unrelated','Affirm','Deny','Neutral']
     alt_codes = ['Affirm']
     rumor = 'hadley'
-    db = utils.mongo_connect(db_name='code_comparison',collection_name=rumor)
-    #read_codes('/home/jim/Dropbox/research/starbird_research/coding/group3/',db=db)
-    #coder_agreement(db=db,coders=2,codes=alt_codes)
-    agreement_sheet(db=db,coders=2)
+    coders = 2
+    code_comparison = utils.mongo_connect(db_name='code_comparison',collection_name=rumor)
+    compression = utils.mongo_connect(db_name='sydneysiege_cache',collection_name=rumor)
+    read_codes('../codes/',db=code_comparison)
+    adjudicate_db(db=code_comparison,coders=3)
+    #coder_agreement(db=code_comparison,coders=2,codes=alt_codes)
+    #agreement_sheet(db=code_comparison,coders=coders)
 
 if __name__ == "__main__":
     main()
