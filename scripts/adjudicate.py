@@ -135,15 +135,17 @@ def agreement_sheet(db,coders):
 def main():
     #adjudicate()
     codes = ['Uncodable','Unrelated','Affirm','Deny','Neutral']
-    alt_codes = ['Affirm']
+    alt_codes = [['Uncertainty'],['Ambiguity'],['Implicit']]
     rumor = 'hadley'
     coders = 2
     code_comparison = utils.mongo_connect(db_name='code_comparison',collection_name=rumor)
     compression = utils.mongo_connect(db_name='sydneysiege_cache',collection_name=rumor)
     read_codes('../codes/',db=code_comparison)
-    adjudicate_db(db=code_comparison,coders=3)
-    #coder_agreement(db=code_comparison,coders=2,codes=alt_codes)
-    #agreement_sheet(db=code_comparison,coders=coders)
+    #adjudicate_db(db=code_comparison,coders=coders)
+    coder_agreement(db=code_comparison,coders=coders,codes=alt_codes)
+    for x in alt_codes:
+        coder_agreement(db=code_comparison,coders=coders,codes=x)
+    agreement_sheet(db=code_comparison,coders=coders)
 
 if __name__ == "__main__":
     main()

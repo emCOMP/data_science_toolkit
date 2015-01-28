@@ -154,7 +154,7 @@ def main():
     # list of dbs for creating samples from multiple databases
     #dbs = [utils.mongo_connect(db_name='sydneysiege')]
     # single database for creating a sample
-    #db = utils.mongo_connect(db_name='sydneysiege')
+    db = utils.mongo_connect(db_name='sydneysiege')
     db_name = 'sydneysiege'
     # the cache database name for compression
     cache_name = 'sydneysiege_cache'
@@ -166,12 +166,12 @@ def main():
     # uncomment this code to compress tweets and create a full sample
     #for db in dbs:
     #rumor_collection(db_name=db_name,rumor_list=rumor_list)
-    #compress_tweets(db_name=db_name,rumor_list=rumor_list,cache_name=cache_name)
-    #create_sample(rumor_list=rumor_list,db=cache_name,dbs=dbs)
+    compress_tweets(db_name=db_name,rumor_list=rumor_list,cache_name=cache_name)
+    create_sample(rumor_list=rumor_list,db=cache_name,dbs=dbs)
 
     #rumor_collection(db_name=db_name,rumor_list=rumor_list)
 
-    expand_tweets(db_name=db_name,cache_name=cache_name,code_comparison_name=code_comparison_name,rumor_list=rumor_list)
+    #expand_tweets(db_name=db_name,cache_name=cache_name,code_comparison_name=code_comparison_name,rumor_list=rumor_list)
 
     # uncomment this code to create a random sample.
     #create_sample(rumor_list=rumor_list,db=db,num=60,scrub_url=True,old=True)
