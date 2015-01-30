@@ -5,10 +5,11 @@ Inputs (via command-line):
 
 Example: python sheets.py lakemba_full.csv coder_assignments.csv
 
-Outputs: n unique but overlapping coding sheets for a set of coders
+Outputs: n unique but overlapping coding sheets for a set of coders using a pseudo-random approach
 """
 from collections import Counter
 import csv, random, sys
+import itertools
 
 COVERAGE = 3 # number of passes needed on a particular tweet
 
@@ -38,15 +39,25 @@ def write_to_csv(coder_name, tweets):
 # Entry point
 tweets = [tweet+[0] for tweet in read_from_csv(get_sample_file())]
 coders = read_from_csv(get_coder_file())
+current_coverage = 0 # We first hit all tweets with 0 coverage, then 1 coverage and so on. This variable controls that
 
-for coder in coders[1:]: #
+for coder in coders[1:]: # 1 coder at a time
   assigned_tweets = []
-  while int(coder[1]) > 0:
+  unassigned_tweets = tweets[1:]
+
+  while int(coder[1]) > 0: #While they still have capacity
     coder[1] = int(coder[1]) - 1
-    tweet = random.choice(tweets[1:])
+    unassigned_tweets_by_level = [i for i in unassigned_tweets if i[5] == current_coverage]
+    if len(unassigned_tweets_by_level) == 1: # if we exhaust tweets at the current coverage level we move on
+      current_coverage = current_coverage + 1
+      tweet = unassigned_tweets[0]
+    else:
+      tweet = random.choice(unassigned_tweets_by_level[1:])
     assigned_tweets += [tweet[:4]]
+    unassigned_tweets.remove(tweet)
+    tweet = tweets[tweets.index(tweet)]
     tweet[5] = tweet[5] + 1
-    if tweet[5] == COVERAGE:
+    if tweet[5] == COVERAGE: #if the tweet has been covered the requisite number of times take it out
       tweets.remove(tweet)
   write_to_csv(coder[0], assigned_tweets)
 
