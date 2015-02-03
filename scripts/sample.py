@@ -116,7 +116,12 @@ def compress_tweets(db_name,rumor_list,cache_name):
     for rumor in rumor_list:
         cache = utils.mongo_connect(db_name=cache_name,collection_name=rumor)
         db = utils.mongo_connect(db_name=db_name)
-        _compress_tweets(db=db,cache=cache,rumor=rumor)
+        test = cache.find_one()
+        if test:
+            print 'uniques db already exists!'
+            print 'exiting...'
+        else:
+            _compress_tweets(db=db,cache=cache,rumor=rumor)
 
 def expand_tweets(db_name,cache_name,code_comparison_name,rumor_list):
     for rumor in rumor_list:

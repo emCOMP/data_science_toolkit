@@ -231,12 +231,12 @@ def main():
     db = utils.mongo_connect(db_name='sydneysiege')
     db_name = 'sydneysiege'
     codes = ['Affirm','Deny','Neutral']
-    total_tweets_over_time(db=db,fname='total_tweets_over_time_sydneysiege')
-    #top_hashtags(db=db,top=100,fname='top_hashtags_ebola',write=True)
+    #total_tweets_over_time(db=db,fname='total_tweets_over_time_sydneysiege')
+    top_hashtags(db=db,top=1000,fname='top_hashtags_test',write=True)
     #top_mentions(db=db,top=1000,fname='sydneysiege_top_mentions',write=True)
     #cooccuring_hashtags(db=db,num_top_nodes=100,num_co_nodes=100,fname='cooccuring_sydneysiege_1000',write=True)
     #feature_over_time(db=db,fname='tcot2_over_time',feature='hashtag',name='tcot',gran='hour')
-    codes_over_time(db_name=db_name,codes=codes,rumor='hadley',gran='minute')
+    #codes_over_time(db_name=db_name,codes=codes,rumor='hadley',gran='minute')
     '''multi_feature_over_time(db=db,feature='hashtag',names=['illridewithyou',
                                                            'martinplace',
                                                            'prayforsydney',
