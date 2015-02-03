@@ -130,6 +130,7 @@ class Processor(object):
                                         }
                                     )
 
+    # old helper method for adjudicating to file
     def process(self,in_name,out_name):
         f_out = utils.write_to_samples(path=out_name)
         with open(in_name, 'rb') as f_in:
@@ -156,6 +157,7 @@ class Processor(object):
                     f_out.write(',false')
                 f_out.write('\n')
 
+    # old method for adjudicating to file
     def adjudicate(self):
         print 'enter a valid input file name (include file extension):'
         fname_in = raw_input('>> ')
@@ -164,15 +166,14 @@ class Processor(object):
         fname_out = os.path.join(os.path.dirname(__file__),os.pardir,'samples/') + fname_out
         process(in_name=fname_in,out_name=fname_out)
 
-    def coder_agreement(self,db,coders,codes=None):
-        if not codes:
-            codes  = ['Uncodable','Unrelated','Affirm','Deny','Neutral']
+    # TODO: update agreement to work with new schema
+    def coder_agreement(self):
         mat = []
-        tweets = db.find()
+        tweets = self.code_comparison.find()
         for tweet in tweets:
             result = []
             num_codes = 0
-            for code in codes:
+            for code in self.first_codes:
                 if code in tweet:
                     result.append(tweet[code])
                     num_codes += tweet[code]
@@ -180,7 +181,6 @@ class Processor(object):
                     result.append(0)
             result.append(coders-num_codes)
             mat.append(result)
-        print mat
         aggreement = kappa.computeKappa(mat)
 
     def agreement_sheet(self,db,coders):
