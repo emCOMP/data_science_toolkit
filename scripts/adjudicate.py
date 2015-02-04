@@ -23,6 +23,8 @@ class Processor(object):
         self.num_coders = num_coders
         # directory path for raw coding sheets
         self.code_dir = os.path.join(os.path.dirname(__file__),os.pardir,'codes/')
+        # rumor to process
+        self.rumor = rumor
 
     # helper method for mapping coder names to coder ids
     # if no name exists, create a new coder
@@ -83,6 +85,8 @@ class Processor(object):
                                         codes['first'] = header[count]
                                     elif col is not '' and header[count] in self.second_codes:
                                         codes[header[count]] = 1
+                                if 'first' not in codes:
+                                    codes['first'] = None
                                 if tweet_id:
                                     self.code_comparison.update(
                                         {'db_id':tweet_id,'text':tweet_text},
@@ -104,6 +108,7 @@ class Processor(object):
         for tweet in tweets:
             code_counts = {}
             for codes in tweet['codes']:
+                print tweet
                 code_counts[codes['first']] = code_counts.get(codes['first'],0) + 1
                 for code in self.second_codes:
                     code_counts[code] = code_counts.get(code,0) + codes.get(code,0)
@@ -129,6 +134,22 @@ class Processor(object):
                                             }
                                         }
                                     )
+
+    def write_adjudication(self):
+        print '1st or 2nd level adjudication (1/2)?'
+        level = raw_input('>> ')
+        print 'enter a valid file name'
+        fname = raw_input('>> ')
+        f_out = utils.write_to_samples(path=(fname + '.csv'))
+        f_out.write('"db_id","rumor","text"\n')
+        if level == 1:
+            query = {'first_final':'Adjudicate'}
+        else:
+            query = {'second_final':'Adjudicate'}
+        tweets = self.code_comparison.find(query)
+        for tweet in tweets:
+            result = '"%s","%s","%s"\n' % (tweet['db_id'],self.rumor,tweet['text'])
+            f_out.write(result.encode('utf-8'))
 
     # old helper method for adjudicating to file
     def process(self,in_name,out_name):
@@ -214,13 +235,14 @@ def main():
     #adjudicate()
     #codes = ['Uncodable','Unrelated','Affirm','Deny','Neutral']
     #alt_codes = [['Uncertainty'],['Ambiguity'],['Implicit']]
-    rumor = 'lakemba'
+    rumor = 'hadley'
     coders = 3
     #code_comparison = utils.mongo_connect(db_name='code_comparison',collection_name=rumor)
     #compression = utils.mongo_connect(db_name='sydneysiege_cache',collection_name=rumor)
     p = Processor(rumor=rumor,num_coders=coders)
     #p.read_codes()
-    p.adjudicate_db()
+    #p.adjudicate_db()
+    p.write_adjudication()
     #adjudicate_db(db=code_comparison,coders=coders)
     #coder_agreement(db=code_comparison,coders=coders,codes=alt_codes)
     #for x in alt_codes:

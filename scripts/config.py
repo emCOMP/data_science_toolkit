@@ -1,6 +1,7 @@
 import re
 
 rumor_terms = {
+    ## EBOLA RUMORS ##
     'red_cross':{
         '$and':[
             {'text':re.compile('vaccine',re.IGNORECASE)},
@@ -38,6 +39,7 @@ rumor_terms = {
             {'text':re.compile('trailers',re.IGNORECASE)}
         ]
     },
+    ## SYDNEY SIEGE RUMORS ##
     'gunmen':
     {
         '$or':[
@@ -72,6 +74,7 @@ rumor_terms = {
             }
         ]
     },
+    # unused
     'isis':
     {
         '$or':[
@@ -98,6 +101,7 @@ rumor_terms = {
             {'text':re.compile('no fly',re.IGNORECASE)}
         ]
     },
+    # unused
     'tweet':
     {
         '$and':[
@@ -118,6 +122,7 @@ rumor_terms = {
             }
         ]
     },
+    # unused
     'priest':
     {
         'text':re.compile('priest',re.IGNORECASE)
@@ -134,18 +139,24 @@ rumor_terms = {
             }
         ]
     },
-    'hadley_test':
-    {
-        '$and':[
-            {'text':re.compile('phone',re.IGNORECASE)},
-            {'text':re.compile('hostage',re.IGNORECASE)},
-        ]
-    },
     'lakemba':
     {
         '$and':[
             {'text':re.compile('lakemba',re.IGNORECASE)},
             {'text':re.compile('^((?!vigil).)*$',re.IGNORECASE)},
         ]
-    }
+    },
+    'flag':
+    {
+        '$and':[
+            {'text':re.compile('flag',re.IGNORECASE)},
+            {
+                '$or':[
+                    {'text':re.compile(' isis',re.IGNORECASE)},
+                    {'text':re.compile('#isis',re.IGNORECASE)},
+                    {'text':re.compile('isil',re.IGNORECASE)}
+                ]
+            }
+        ]
+    },
 }
