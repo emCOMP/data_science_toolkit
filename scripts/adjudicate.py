@@ -83,6 +83,7 @@ class Processor(object):
                                         tweet_text = col.decode('latin-1').encode('utf-8')
                                     elif col is not '' and header[count] in self.first_codes:
                                         codes['first'] = header[count]
+                                        codes[header[count]] = 1
                                     elif col is not '' and header[count] in self.second_codes:
                                         codes[header[count]] = 1
                                 if 'first' not in codes:
@@ -108,7 +109,6 @@ class Processor(object):
         for tweet in tweets:
             code_counts = {}
             for codes in tweet['codes']:
-                print tweet
                 code_counts[codes['first']] = code_counts.get(codes['first'],0) + 1
                 for code in self.second_codes:
                     code_counts[code] = code_counts.get(code,0) + codes.get(code,0)
@@ -120,7 +120,7 @@ class Processor(object):
                 elif float(code_counts.get(code,0))/self.num_coders > .5:
                          second_final.append(code)
             self.first_codes.sort(key=lambda x: code_counts.get(x,0), reverse=True)
-            if code_counts.get(self.first_codes[0],0) > .5:
+            if float(code_counts.get(self.first_codes[0],0))/self.num_coders > .5:
                 first_final = self.first_codes[0]
             else:
                 first_final = 'Adjudicate'
@@ -135,6 +135,7 @@ class Processor(object):
                                         }
                                     )
 
+    # create a coding csv file of just tweets needing human adjudication
     def write_adjudication(self):
         print '1st or 2nd level adjudication (1/2)?'
         level = raw_input('>> ')
@@ -187,22 +188,53 @@ class Processor(object):
         fname_out = os.path.join(os.path.dirname(__file__),os.pardir,'samples/') + fname_out
         process(in_name=fname_in,out_name=fname_out)
 
-    # TODO: update agreement to work with new schema
-    def coder_agreement(self):
+    # calculate agreement for first tier codes
+    # based on new schema using key 'first'
+    def first_coder_agreement(self):
         mat = []
         tweets = self.code_comparison.find()
         for tweet in tweets:
             result = []
+            code_counts = {}
             num_codes = 0
+            for code in tweet['codes']:
+                if code['first'] in self.first_codes:
+                    code_counts[code['first']] = code_counts.get(code['first'],0) + 1
+                    num_codes += 1
             for code in self.first_codes:
-                if code in tweet:
-                    result.append(tweet[code])
-                    num_codes += tweet[code]
+                if code in code_counts:
+                    result.append(code_counts[code])
                 else:
                     result.append(0)
-            result.append(coders-num_codes)
+            result.append(self.num_coders-num_codes)
             mat.append(result)
+        print mat
         aggreement = kappa.computeKappa(mat)
+
+
+    # calculate agreement for any coding scheme
+    # do NOT use key 'first'
+    def coder_agreement(self,code_scheme):
+        mat = []
+        tweets = self.code_comparison.find()
+        for tweet in tweets:
+            result = []
+            code_counts = {}
+            num_codes = 0
+            for code in tweet['codes']:
+                if code.key() in code_scheme:
+                    code_counts[code.key()] = code_counts.get(code.key(),0) + 1
+                    num_codes += 1
+            for code in code_scheme:
+                if code in code_counts:
+                    result.append(code_counts[code])
+                else:
+                    result.append(0)
+            result.append(self.num_coders-num_codes)
+            mat.append(result)
+        print mat
+        aggreement = kappa.computeKappa(mat)
+
 
     def agreement_sheet(self,db,coders):
         print 'enter a valid output file name:'
@@ -235,16 +267,16 @@ def main():
     #adjudicate()
     #codes = ['Uncodable','Unrelated','Affirm','Deny','Neutral']
     #alt_codes = [['Uncertainty'],['Ambiguity'],['Implicit']]
-    rumor = 'hadley'
+    rumor = 'lakemba'
     coders = 3
     #code_comparison = utils.mongo_connect(db_name='code_comparison',collection_name=rumor)
     #compression = utils.mongo_connect(db_name='sydneysiege_cache',collection_name=rumor)
     p = Processor(rumor=rumor,num_coders=coders)
     #p.read_codes()
     #p.adjudicate_db()
-    p.write_adjudication()
+    #p.write_adjudication()
     #adjudicate_db(db=code_comparison,coders=coders)
-    #coder_agreement(db=code_comparison,coders=coders,codes=alt_codes)
+    p.coder_agreement()
     #for x in alt_codes:
     #    coder_agreement(db=code_comparison,coders=coders,codes=x)
     #agreement_sheet(db=code_comparison,coders=coders)
