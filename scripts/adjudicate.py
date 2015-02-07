@@ -90,8 +90,9 @@ class Processor(object):
                                     codes['first'] = None
                                 if tweet_id:
                                     self.code_comparison.update(
-                                        {'db_id':tweet_id,'text':tweet_text},
+                                        {'db_id':tweet_id,},
                                         {
+                                            '$setOnInsert':{'text':tweet_text},
                                             #'$setOnInsert':{'codes':[]},
                                             '$addToSet':{'codes':codes}
                                         },
@@ -267,16 +268,16 @@ def main():
     #adjudicate()
     #codes = ['Uncodable','Unrelated','Affirm','Deny','Neutral']
     #alt_codes = [['Uncertainty'],['Ambiguity'],['Implicit']]
-    rumor = 'lakemba'
+    rumor = 'hadley'
     coders = 3
     #code_comparison = utils.mongo_connect(db_name='code_comparison',collection_name=rumor)
     #compression = utils.mongo_connect(db_name='sydneysiege_cache',collection_name=rumor)
     p = Processor(rumor=rumor,num_coders=coders)
-    #p.read_codes()
-    #p.adjudicate_db()
+    p.read_codes()
+    p.adjudicate_db()
     #p.write_adjudication()
     #adjudicate_db(db=code_comparison,coders=coders)
-    p.coder_agreement()
+    #p.coder_agreement()
     #for x in alt_codes:
     #    coder_agreement(db=code_comparison,coders=coders,codes=x)
     #agreement_sheet(db=code_comparison,coders=coders)

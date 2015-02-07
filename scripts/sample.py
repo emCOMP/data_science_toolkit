@@ -102,7 +102,7 @@ def _compress_tweets(db,cache,rumor):
 
         if cache.find_one({'text':text}) is not None:
             cache.update({'text':text},
-                         {'$push':{'id':tweet['id']}})
+                         {'$addToSet':{'id':tweet['id']}})
         else:
             cache.insert({'db_id':count,
                           'rumor':rumor,
@@ -134,12 +134,14 @@ def _expand_tweets(db,cache,code_comparison,rumor):
     compressed_list = code_comparison.find()
     for tweet in compressed_list:
         db_id = int(tweet['db_id'])
-        final_code = tweet.get('final','')
+        first_code = tweet.get('first_final','')
+        second_code = tweet.get('second_final',[])
         tweet_list = cache.find_one({'db_id':db_id})
-        for tweets in tweet_list['id']:
+        for tweets in set(tweet_list['id']):
             db.update({'id':tweets},
                       {'$push':{'codes':{'rumor':rumor,
-                                         'code':final_code,}}})
+                                         'first_code':first_code,
+                                         'second_code':second_code}}})
 
 def rumor_collection(db_name,rumor_list):
     for rumor in rumor_list:
@@ -166,7 +168,7 @@ def main():
     code_comparison_name = 'code_comparison'
 
     # list of the rumors names.  check config.py for rumor names
-    rumor_list=['flag','airspace']
+    rumor_list=['hadley']
 
     # uncomment this code to compress tweets and create a full sample
     #for db in dbs:
@@ -174,12 +176,12 @@ def main():
     #compress_tweets(db_name=db_name,rumor_list=rumor_list,cache_name=cache_name)
     #create_sample(rumor_list=rumor_list,db=cache_name,dbs=dbs)
 
-    #rumor_collection(db_name=db_name,rumor_list=rumor_list)
+    rumor_collection(db_name=db_name,rumor_list=rumor_list)
 
-    #expand_tweets(db_name=db_name,cache_name=cache_name,code_comparison_name=code_comparison_name,rumor_list=rumor_list)
+    expand_tweets(db_name=db_name,cache_name=cache_name,code_comparison_name=code_comparison_name,rumor_list=rumor_list)
 
     # uncomment this code to create a random sample.
-    create_sample(rumor_list=rumor_list,db=db,num=60,scrub_url=True,old=True)
+    #create_sample(rumor_list=rumor_list,db=db,num=60,scrub_url=True,old=True)
 
 if __name__ == "__main__":
     main()
