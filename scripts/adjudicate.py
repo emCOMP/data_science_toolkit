@@ -236,7 +236,7 @@ class Processor(object):
         print mat
         aggreement = kappa.computeKappa(mat)
 
-
+    # old method for showing agreement numbers
     def agreement_sheet(self,db,coders):
         print 'enter a valid output file name:'
         fname_out = raw_input('>> ')
@@ -264,23 +264,27 @@ class Processor(object):
             if not agreement:
                 f_out.write(result)
 
-def main():
+# depreciated methods
+# use main()
+def old_main():
     #adjudicate()
     #codes = ['Uncodable','Unrelated','Affirm','Deny','Neutral']
     #alt_codes = [['Uncertainty'],['Ambiguity'],['Implicit']]
-    rumor = 'hadley'
-    coders = 3
     #code_comparison = utils.mongo_connect(db_name='code_comparison',collection_name=rumor)
     #compression = utils.mongo_connect(db_name='sydneysiege_cache',collection_name=rumor)
+    #adjudicate_db(db=code_comparison,coders=coders)
+    #for x in alt_codes:
+    #    coder_agreement(db=code_comparison,coders=coders,codes=x)
+    #agreement_sheet(db=code_comparison,coders=coders)
+
+def main():
+    rumor = 'hadley'
+    coders = 3
     p = Processor(rumor=rumor,num_coders=coders)
     p.read_codes()
     p.adjudicate_db()
     #p.write_adjudication()
-    #adjudicate_db(db=code_comparison,coders=coders)
     #p.coder_agreement()
-    #for x in alt_codes:
-    #    coder_agreement(db=code_comparison,coders=coders,codes=x)
-    #agreement_sheet(db=code_comparison,coders=coders)
 
 if __name__ == "__main__":
     main()
