@@ -159,4 +159,18 @@ rumor_terms = {
             }
         ]
     },
+    'rebels':
+    {
+        '$and':[
+            {'text':re.compile('ukrain',re.IGNORECASE)},
+            {'text':re.compile('shot',re.IGNORECASE)}
+            {
+                '$or':[
+                    {'text':re.compile(' isis',re.IGNORECASE)},
+                    {'text':re.compile('#isis',re.IGNORECASE)},
+                    {'text':re.compile('isil',re.IGNORECASE)}
+                ]
+            }
+        ]
+    },
 }
