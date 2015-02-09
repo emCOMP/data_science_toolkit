@@ -2,15 +2,15 @@ import MySQLdb,utils,db_config
 from pymongo import MongoClient
 
 #connect to mongo db
-mongo = utils.mongo_connect(db_name='ebola3')
+mongo = utils.mongo_connect(db_name='mh17')
 
 #connect to sql db
 sql = MySQLdb.connect(host=db_config.sql['host'],
                       user=db_config.sql['user'],
                       passwd=db_config.sql['passwd'],
-                      db="ebola")
+                      db="mh17")
 sql_cursor = sql.cursor()
-table = 'tweet_Ebola2'
+table = 'tweet_mh17'
 
 def process(x):
     tweet = {
@@ -71,8 +71,8 @@ def process(x):
             'user':{
                 'screen_name':x[29].decode('latin-1').encode('utf-8')
             },
-            'text':x[30].decode('latin-1').encode('utf-8'),
-            'created_ts':x[31]
+            #'text':x[30].decode('latin-1').encode('utf-8'),
+            #'created_ts':x[31]
         }
         tweet['retweeted_status'] = retweeted
     return tweet
@@ -110,5 +110,5 @@ def main():
     print 'finished processing'
 
 if __name__ == "__main__":
-    #main()
-    index_check()
+    main()
+    #index_check()

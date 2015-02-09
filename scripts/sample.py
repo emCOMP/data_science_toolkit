@@ -38,8 +38,8 @@ def _create_sample_old(rumor,num,db,f,scrub_url=True):
                 unique = False
         if unique is True:
             result.append(text)
-            out = '"%s","%s","%s",\n' % (rumor,
-                                         tweet['id'],
+            out = '"%s","%s","%s",\n' % (tweet['id'],
+                                         rumor,
                                          tweet['text'].replace('"',''))
             f.write(out.encode('utf-8'))
             count += 1
@@ -102,7 +102,7 @@ def _compress_tweets(db,cache,rumor):
 
         if cache.find_one({'text':text}) is not None:
             cache.update({'text':text},
-                         {'$push':{'id':tweet['id']}})
+                         {'$addToSet':{'id':tweet['id']}})
         else:
             cache.insert({'db_id':count,
                           'rumor':rumor,
@@ -116,7 +116,12 @@ def compress_tweets(db_name,rumor_list,cache_name):
     for rumor in rumor_list:
         cache = utils.mongo_connect(db_name=cache_name,collection_name=rumor)
         db = utils.mongo_connect(db_name=db_name)
-        _compress_tweets(db=db,cache=cache,rumor=rumor)
+        test = cache.find_one()
+        if test:
+            print 'uniques db already exists!'
+            print 'exiting...'
+        else:
+            _compress_tweets(db=db,cache=cache,rumor=rumor)
 
 def expand_tweets(db_name,cache_name,code_comparison_name,rumor_list):
     for rumor in rumor_list:
@@ -129,12 +134,14 @@ def _expand_tweets(db,cache,code_comparison,rumor):
     compressed_list = code_comparison.find()
     for tweet in compressed_list:
         db_id = int(tweet['db_id'])
-        final_code = tweet.get('final','')
+        first_code = tweet.get('first_final','')
+        second_code = tweet.get('second_final',[])
         tweet_list = cache.find_one({'db_id':db_id})
-        for tweets in tweet_list['id']:
+        for tweets in set(tweet_list['id']):
             db.update({'id':tweets},
                       {'$push':{'codes':{'rumor':rumor,
-                                         'code':final_code,}}})
+                                         'first_code':first_code,
+                                         'second_code':second_code}}})
 
 def rumor_collection(db_name,rumor_list):
     for rumor in rumor_list:
@@ -154,14 +161,14 @@ def main():
     # list of dbs for creating samples from multiple databases
     #dbs = [utils.mongo_connect(db_name='sydneysiege')]
     # single database for creating a sample
-    #db = utils.mongo_connect(db_name='sydneysiege')
+    db = utils.mongo_connect(db_name='sydneysiege')
     db_name = 'sydneysiege'
     # the cache database name for compression
     cache_name = 'sydneysiege_cache'
     code_comparison_name = 'code_comparison'
 
     # list of the rumors names.  check config.py for rumor names
-    rumor_list=['hadley',]
+    rumor_list=['hadley']
 
     # uncomment this code to compress tweets and create a full sample
     #for db in dbs:
@@ -169,7 +176,7 @@ def main():
     #compress_tweets(db_name=db_name,rumor_list=rumor_list,cache_name=cache_name)
     #create_sample(rumor_list=rumor_list,db=cache_name,dbs=dbs)
 
-    #rumor_collection(db_name=db_name,rumor_list=rumor_list)
+    rumor_collection(db_name=db_name,rumor_list=rumor_list)
 
     expand_tweets(db_name=db_name,cache_name=cache_name,code_comparison_name=code_comparison_name,rumor_list=rumor_list)
 
