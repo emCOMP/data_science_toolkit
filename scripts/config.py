@@ -166,11 +166,10 @@ rumor_terms = {
             {'text':re.compile('shot',re.IGNORECASE)}
             {
                 '$or':[
-                    {'text':re.compile(' isis',re.IGNORECASE)},
-                    {'text':re.compile('#isis',re.IGNORECASE)},
-                    {'text':re.compile('isil',re.IGNORECASE)}
+                    {'text':re.compile(' rebel',re.IGNORECASE)},
+                    {'text':re.compile('separatist',re.IGNORECASE)}
                 ]
             }
         ]
-    },
+    }
 }
