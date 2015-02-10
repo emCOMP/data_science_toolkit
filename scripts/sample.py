@@ -12,20 +12,39 @@ class TweetSampler(object):
         self.db = utils.mongo_connect(db_name=self.event)
         # db for raw and finals codes
         self.code_comparison = utils.mongo_connect(db_name='code_comparison',
-                                                   collection_name=rumor)
+                                                   collection_name=self.rumor)
         # db for mapping unique tweets to non-uniques
         self.compression = utils.mongo_connect(db_name='rumor_compression',
-                                               collection_name=rumor)
+                                               collection_name=self.rumor)
         # db collection for the individual rumor
-        self.rumor_collection = utils.mongo_connect(db_name=self.event,
-                                                    collection_name=rumor)
+        self.rumor_collection = _create_rumor_collection()
 
+    # check for a rumor specific collection
+    # make collection if doesn't exist
+    # return db
+    def _create_rumor_collection(self):
+        if not self.rumor in self.db.collection_names():
+            rumor_collection = utils.mongo_connect(db_name=self.event,
+                                                   collection_name=self.rumor)
+            insert_list = []
+            tweet_list = _find_tweets()
+            for tweet in tweet_list:
+                insert_list.append(tweet)
+                if len(insert_list) == 1000:
+                    rumor_collection.insert(insert_list)
+                    insert_list = []
+            rumor_collection.insert(insert_list)
+        return rumor_collection
+
+    # helper method for finding rumor specific tweets from config.py
     def _find_tweets(self):
         query = config.rumor_terms[self.rumor]
         tweet_list = self.db.find(query)
         print 'finished query'
         return tweet_list
 
+    # scrub retweets from tweet text
+    # also scrub url if scrub_url is true
     def _scrub_tweet(text,scrub_url=True):
         temp = None
         s = ur'\u201c' + '@.*?:'
@@ -42,7 +61,9 @@ class TweetSampler(object):
         #print text
         return text
 
-    def _create_sample_old(self,num,f,scrub_url=True):
+    # helper method to create a random sample using edit distance
+    # default edit distance of 20
+    def _create_sample_old(self,num,f,scrub_url=True,edit_distance=20):
 
         tweet_list = [x for x in _find_tweets()]
         print 'created list'
@@ -53,7 +74,7 @@ class TweetSampler(object):
             text = _scrub_tweet(text=tweet['text'],scrub_url=True)
             unique = True
             for y in result:
-                if nltk.metrics.edit_distance(text,y) < 20:
+                if nltk.metrics.edit_distance(text,y) < edit_distance:
                     unique = False
             if unique is True:
                 result.append(text)
@@ -67,7 +88,8 @@ class TweetSampler(object):
 
         return result
 
-    def _create_sample(self,rumor,db,dbs,num,f,start=0):
+    # helper method to create a sample of unique tweets from a rumor
+    def _create_sample(self,num,f,start=0):
 
         result = []
         if num == 0:
@@ -91,18 +113,21 @@ class TweetSampler(object):
 
         return result
 
-    def create_sample(self,start=0,scrub_url=True,old=False):
+    # wrapper for creating samples
+    # set edit_distance = true to create a list of different tweets
+    def create_sample(self,start=0,scrub_url=True,edit_distance=False):
         print 'enter a valid file name:'
         fname_in = raw_input('>> ')
         title = "%s.csv" % (fname_in)
         f = utils.write_to_samples(path=title)
         f.write('"db_id","rumor","id","text"\n')
 
-        if old is True:
+        if edit_distance:
             _create_sample_old(num=num,scrub_url=scrub_url,f=f)
         else:
             _create_sample(num=num,f=f,start=start)
 
+    # helper method for creating a list of unique tweets from a rumor
     def _compress_tweets(self):
         tweet_list = _find_tweets()
         try:
@@ -124,6 +149,8 @@ class TweetSampler(object):
                     self.compression.ensure_index('text')
                 count += 1
 
+    # create a list of unique tweets
+    # check to make sure compression hasn't already been run
     def compress_tweets(self):
         test = cache.find_one()
         if test:
@@ -132,6 +159,7 @@ class TweetSampler(object):
         else:
             _compress_tweets()
 
+    # apply codes from unique coded tweets to a rumor specific collection
     def expand_tweets(self):
         compressed_list = self.code_comparison.find()
         for tweet in compressed_list:
@@ -144,16 +172,6 @@ class TweetSampler(object):
                                              {'$push':{'codes':{'rumor':rumor,
                                                                 'first_code':first_code,
                                                                 'second_code':second_code}}})
-
-    def rumor_collection(self):
-        insert_list = []
-        tweet_list = _find_tweets()
-        for tweet in tweet_list:
-            insert_list.append(tweet)
-            if len(insert_list) == 1000:
-                self.rumor_collection.insert(insert_list)
-                insert_list = []
-            self.rumor_collection.insert(insert_list)
 
 def main():
     event = 'sydneysiege'
