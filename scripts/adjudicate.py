@@ -139,18 +139,26 @@ class Processor(object):
     # create a coding csv file of just tweets needing human adjudication
     def write_adjudication(self):
         print '1st or 2nd level adjudication (1/2)?'
-        level = raw_input('>> ')
+        level = int(raw_input('>> '))
         print 'enter a valid file name'
         fname = raw_input('>> ')
         f_out = utils.write_to_samples(path=(fname + '.csv'))
-        f_out.write('"db_id","rumor","text"\n')
+        f_out.write('"db_id","rumor","text","codes"\n')
         if level == 1:
             query = {'first_final':'Adjudicate'}
         else:
             query = {'second_final':'Adjudicate'}
         tweets = self.code_comparison.find(query)
         for tweet in tweets:
-            result = '"%s","%s","%s"\n' % (tweet['db_id'],self.rumor,tweet['text'])
+            final_codes = ''
+            for code in tweet['codes']:
+                if level == 1:
+                    final_codes += '%s,' % code['first']
+                else:
+                    for x in code:
+                        if x in self.second_codes:
+                            final_codes += '%s,' % x
+            result = '"%s","%s","%s","%s",\n' % (tweet['db_id'],self.rumor,tweet['text'],final_codes)
             f_out.write(result.encode('utf-8'))
 
     # old helper method for adjudicating to file
@@ -267,23 +275,23 @@ class Processor(object):
 # depreciated methods
 # use main()
 def old_main():
-    #adjudicate()
-    #codes = ['Uncodable','Unrelated','Affirm','Deny','Neutral']
-    #alt_codes = [['Uncertainty'],['Ambiguity'],['Implicit']]
-    #code_comparison = utils.mongo_connect(db_name='code_comparison',collection_name=rumor)
-    #compression = utils.mongo_connect(db_name='sydneysiege_cache',collection_name=rumor)
-    #adjudicate_db(db=code_comparison,coders=coders)
-    #for x in alt_codes:
-    #    coder_agreement(db=code_comparison,coders=coders,codes=x)
-    #agreement_sheet(db=code_comparison,coders=coders)
+    adjudicate()
+    codes = ['Uncodable','Unrelated','Affirm','Deny','Neutral']
+    alt_codes = [['Uncertainty'],['Ambiguity'],['Implicit']]
+    code_comparison = utils.mongo_connect(db_name='code_comparison',collection_name=rumor)
+    compression = utils.mongo_connect(db_name='sydneysiege_cache',collection_name=rumor)
+    adjudicate_db(db=code_comparison,coders=coders)
+    for x in alt_codes:
+        coder_agreement(db=code_comparison,coders=coders,codes=x)
+    agreement_sheet(db=code_comparison,coders=coders)
 
 def main():
     rumor = 'hadley'
     coders = 3
     p = Processor(rumor=rumor,num_coders=coders)
-    p.read_codes()
-    p.adjudicate_db()
-    #p.write_adjudication()
+    #p.read_codes()
+    #p.adjudicate_db()
+    p.write_adjudication()
     #p.coder_agreement()
 
 if __name__ == "__main__":
