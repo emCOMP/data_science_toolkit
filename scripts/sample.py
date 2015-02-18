@@ -3,9 +3,9 @@ import utils,random,re,nltk,os,csv,config
 
 class TweetSampler(object):
 
-    def __init__(self,event,_namerumor):
+    def __init__(self,event_name,rumor):
         # name of the event's db
-        self.event_name = event_name
+        self.event = event_name
         # name of the rumor to sample / compress /expand
         self.rumor = rumor
         # db containing all event tweets
@@ -17,7 +17,7 @@ class TweetSampler(object):
         self.compression = utils.mongo_connect(db_name='rumor_compression',
                                                collection_name=self.rumor)
         # db collection for the individual rumor
-        self.rumor_collection = _create_rumor_collection()
+        self.rumor_collection = self._create_rumor_collection()
 
     # check for a rumor specific collection
     # make collection if doesn't exist
@@ -175,8 +175,9 @@ class TweetSampler(object):
 
 def main():
     event = 'sydneysiege'
-    rumor = 'hadley'
+    rumor = 'americans_onboard'
     t = TweetSampler(event_name=event,rumor=rumor)
+    t.compress_tweets()
 
 def old_main():
 
