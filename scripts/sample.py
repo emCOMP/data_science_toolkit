@@ -6,7 +6,7 @@ class TweetSampler(object):
     def __init__(self,event_name,rumor):
         # name of the event's db
         self.event = event_name
-        # name of the rumor to sample / compress /expand
+        # name of the rumor to sample/compress/expand
         self.rumor = rumor
         # db containing all event tweets
         self.db = utils.mongo_connect(db_name=self.event)
@@ -23,29 +23,33 @@ class TweetSampler(object):
     # make collection if doesn't exist
     # return db
     def _create_rumor_collection(self):
-        if not self.rumor in self.db.collection_names():
-            rumor_collection = utils.mongo_connect(db_name=self.event,
-                                                   collection_name=self.rumor)
+        rumor_collection = utils.mongo_connect(db_name=self.event,
+                                               collection_name=self.rumor)
+        if rumor_collection.find().count() ==  0:
+            print '[INFO] rumor collection does not exist, creating collection'
             insert_list = []
-            tweet_list = _find_tweets()
+            tweet_list = self._find_tweets()
             for tweet in tweet_list:
                 insert_list.append(tweet)
                 if len(insert_list) == 1000:
                     rumor_collection.insert(insert_list)
                     insert_list = []
             rumor_collection.insert(insert_list)
+            rumor_collection.ensure_index('id')
+        else:
+            print '[INFO] rumor collection exists'
         return rumor_collection
 
     # helper method for finding rumor specific tweets from config.py
     def _find_tweets(self):
         query = config.rumor_terms[self.rumor]
         tweet_list = self.db.find(query)
-        print 'finished query'
+        print '[INFO] finished query'
         return tweet_list
 
     # scrub retweets from tweet text
     # also scrub url if scrub_url is true
-    def _scrub_tweet(text,scrub_url=True):
+    def _scrub_tweet(self,text,scrub_url=True):
         temp = None
         s = ur'\u201c' + '@.*?:'
         while text is not temp:
@@ -65,13 +69,13 @@ class TweetSampler(object):
     # default edit distance of 20
     def _create_sample_old(self,num,f,scrub_url=True,edit_distance=20):
 
-        tweet_list = [x for x in _find_tweets()]
-        print 'created list'
+        tweet_list = [x for x in self._find_tweets()]
+        print '[INFO] created full rumor list'
 
         count = 0
         result = []
         for tweet in tweet_list:
-            text = _scrub_tweet(text=tweet['text'],scrub_url=True)
+            text = self._scrub_tweet(text=tweet['text'],scrub_url=True)
             unique = True
             for y in result:
                 if nltk.metrics.edit_distance(text,y) < edit_distance:
@@ -79,7 +83,7 @@ class TweetSampler(object):
             if unique is True:
                 result.append(text)
                 out = '"%s","%s","%s",\n' % (tweet['id'],
-                                             rumor,
+                                             self.rumor,
                                              tweet['text'].replace('"',''))
                 f.write(out.encode('utf-8'))
                 count += 1
@@ -99,17 +103,15 @@ class TweetSampler(object):
         tweet_list = self.compression.find(query)
 
         for tweet in tweet_list:
-            for x in dbs:
-                full_tweet = self.db.find_one({'id':tweet['id'][0]})
-                if full_tweet is not None:
-                    text = full_tweet['text']
-                    result.append(text)
-                    out = '"%s","%s","%s","%s",\n' % (tweet['db_id'],
-                                                      rumor,
-                                                      tweet['id'][0],
-                                                      text.replace('"',''))
-                    f.write(out.encode('utf-8'))
-                    break
+            full_tweet = self.rumor_collection.find_one({'id':tweet['id'][0]})
+            if full_tweet is not None:
+                text = full_tweet['text']
+                result.append(text)
+                out = '"%s","%s","%s","%s",\n' % (tweet['db_id'],
+                                                  self.rumor,
+                                                  tweet['id'][0],
+                                                  text.replace('"',''))
+                f.write(out.encode('utf-8'))
 
         return result
 
@@ -121,28 +123,29 @@ class TweetSampler(object):
         title = "%s.csv" % (fname_in)
         f = utils.write_to_samples(path=title)
         f.write('"db_id","rumor","id","text"\n')
-
         if edit_distance:
-            _create_sample_old(num=num,scrub_url=scrub_url,f=f)
+            print 'enter a sample size'
+            num = int(raw_input('>> '))
+            self._create_sample_old(num=num,scrub_url=scrub_url,f=f)
         else:
-            _create_sample(num=num,f=f,start=start)
+            self._create_sample(num=0,f=f,start=start)
 
     # helper method for creating a list of unique tweets from a rumor
     def _compress_tweets(self):
-        tweet_list = _find_tweets()
+        tweet_list = self._find_tweets()
         try:
             count = self.compression.find().sort('db_id',-1).limit(1).next()['db_id'] + 1
         except StopIteration:
             count = 0
         for tweet in tweet_list:
-            text = _scrub_tweet(text=tweet['text'],scrub_url=True)
+            text = self._scrub_tweet(text=tweet['text'],scrub_url=True)
 
             if self.compression.find_one({'text':text}) is not None:
                 self.compression.update({'text':text},
                                         {'$addToSet':{'id':tweet['id']}})
             else:
                 self.compression.insert({'db_id':count,
-                                         'rumor':rumor,
+                                         'rumor':self.rumor,
                                          'text':text,
                                          'id':[tweet['id']]})
                 if count == 0:
@@ -152,12 +155,13 @@ class TweetSampler(object):
     # create a list of unique tweets
     # check to make sure compression hasn't already been run
     def compress_tweets(self):
-        test = cache.find_one()
+        test = self.compression.find_one()
         if test:
-            print 'uniques db already exists!'
-            print 'exiting...'
+            print '[INFO] uniques collection already exists!'
+            print '[INFO] drop uniques collection to compress again'
         else:
-            _compress_tweets()
+            print '[INFO] creating uniques list'
+            self._compress_tweets()
 
     # apply codes from unique coded tweets to a rumor specific collection
     def expand_tweets(self):
@@ -169,15 +173,24 @@ class TweetSampler(object):
             tweet_list = self.compression.find_one({'db_id':db_id})
             for tweets in set(tweet_list['id']):
                 self.rumor_collection.update({'id':tweets},
-                                             {'$push':{'codes':{'rumor':rumor,
+                                             {'$push':{'codes':{'rumor':self.rumor,
                                                                 'first_code':first_code,
                                                                 'second_code':second_code}}})
 
 def main():
-    event = 'sydneysiege'
+    # the event identifier
+    event = 'mh17'
+    # the rumor identifier
     rumor = 'americans_onboard'
     t = TweetSampler(event_name=event,rumor=rumor)
+    # uncomment to find unqiues
     t.compress_tweets()
+    # uncomment to create a random sample
+    #t.create_sample(edit_distance=True)
+    # uncomment to create a full sample of uniques
+    t.create_sample(edit_distance=False)
+    # uncomment to apply codes to non-uniques
+    #t.expand_tweets()
 
 def old_main():
 
