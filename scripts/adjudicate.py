@@ -131,16 +131,24 @@ class Processor(object):
                 first_final = self.first_codes[0]
             else:
                 first_final = 'Adjudicate'
-            self.code_comparison.update({'db_id':tweet['db_id']},
-                                        {
-                                            '$set':{'first_final':first_final},
-                                            '$addToSet':{
-                                                'second_final':{
-                                                    '$each':second_final
+            if machine_adj:
+                self.code_comparison.update({'db_id':tweet['db_id']},
+                                            {
+                                                '$set':{'first_final':first_final},
+                                                '$addToSet':{
+                                                    'second_final':{
+                                                        '$each':second_final
+                                                    }
                                                 }
                                             }
-                                        }
-                                    )
+                                        )
+            else:
+                self.code_comparison.update({'db_id':tweet['db_id']},
+                                            {
+                                                '$set':{'first_final':first_final},
+                                                '$set':{'second_final':second_final}
+                                            }
+                                        )
 
     # create a coding csv file of just tweets needing human adjudication
     def write_adjudication(self):
@@ -297,9 +305,9 @@ def main():
     # the number of pre-adjudication coders
     coders = 3
     p = Processor(rumor=rumor,num_coders=coders)
-    #p.read_codes()
-    #p.adjudicate_db()
-    p.write_adjudication()
+    p.read_codes()
+    p.adjudicate_db()
+    #p.write_adjudication()
     #p.coder_agreement()
 
 if __name__ == "__main__":
