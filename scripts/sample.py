@@ -192,6 +192,9 @@ def main():
     # uncomment to apply codes to non-uniques
     #t.expand_tweets()
 
+
+# DON'T USE THESE
+# USE MAIN METHOD ABOVE
 def old_main():
 
     # list of dbs for creating samples from multiple databases

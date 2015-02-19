@@ -106,6 +106,12 @@ class Processor(object):
     # Adjudicate codes for each coded tweet.
     # Add fields for first and second tier codes
     def adjudicate_db(self):
+        print 'Machine adjudicate without adjudication sheet (Y/n)?'
+        user_in = raw_input('>> ')
+        if user_in == 'y':
+            machine_adj = True
+        else:
+            machine_adj = False
         tweets = self.code_comparison.find()
         for tweet in tweets:
             code_counts = {}
@@ -115,7 +121,7 @@ class Processor(object):
                     code_counts[code] = code_counts.get(code,0) + codes.get(code,0)
             second_final = []
             for code in self.second_codes:
-                if code_counts[code] == 1:
+                if code_counts[code] == 1 and machine_adj:
                     second_final = ['Adjudicate']
                     break
                 elif float(code_counts.get(code,0))/self.num_coders > .5:
@@ -286,7 +292,9 @@ def old_main():
     agreement_sheet(db=code_comparison,coders=coders)
 
 def main():
+    # the rumor identifier
     rumor = 'hadley'
+    # the number of pre-adjudication coders
     coders = 3
     p = Processor(rumor=rumor,num_coders=coders)
     #p.read_codes()
