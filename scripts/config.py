@@ -177,4 +177,17 @@ rumor_terms = {
             }
         ]
     },
+    'rebels':
+    {
+        '$and':[
+            {'text':re.compile('ukrain',re.IGNORECASE)},
+            {'text':re.compile('shot',re.IGNORECASE)}
+            {
+                '$or':[
+                    {'text':re.compile(' rebel',re.IGNORECASE)},
+                    {'text':re.compile('separatist',re.IGNORECASE)}
+                ]
+            }
+        ]
+    }
 }
