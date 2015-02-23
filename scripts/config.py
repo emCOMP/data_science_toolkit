@@ -181,7 +181,7 @@ rumor_terms = {
     {
         '$and':[
             {'text':re.compile('ukrain',re.IGNORECASE)},
-            {'text':re.compile('shot',re.IGNORECASE)}
+            {'text':re.compile('shot',re.IGNORECASE)},
             {
                 '$or':[
                     {'text':re.compile(' rebel',re.IGNORECASE)},

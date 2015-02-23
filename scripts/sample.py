@@ -165,6 +165,7 @@ class TweetSampler(object):
 
     # apply codes from unique coded tweets to a rumor specific collection
     def expand_tweets(self):
+        print '[INFO] expanding tweets'
         compressed_list = self.code_comparison.find()
         for tweet in compressed_list:
             db_id = int(tweet['db_id'])

@@ -10,7 +10,7 @@ class Processor(object):
         self.code_comparison = utils.mongo_connect(db_name='code_comparison',
                                                    collection_name=rumor)
         # db for mapping unique tweets to non-uniques
-        self.compression = utils.mongo_connect(db_name='sydneysiege_cache',
+        self.compression = utils.mongo_connect(db_name='rumor_compression',
                                                collection_name=rumor)
         # db mapping coder names to coder ids
         self.coders = utils.mongo_connect(db_name='coders',
@@ -106,12 +106,12 @@ class Processor(object):
     # Adjudicate codes for each coded tweet.
     # Add fields for first and second tier codes
     def adjudicate_db(self):
-        print 'Machine adjudicate without adjudication sheet (Y/n)?'
+        print 'Are you adding an adjudication sheet (y/N)?'
         user_in = raw_input('>> ')
         if user_in == 'y':
-            machine_adj = True
-        else:
             machine_adj = False
+        else:
+            machine_adj = True
         tweets = self.code_comparison.find()
         for tweet in tweets:
             code_counts = {}
@@ -145,8 +145,10 @@ class Processor(object):
             else:
                 self.code_comparison.update({'db_id':tweet['db_id']},
                                             {
-                                                '$set':{'first_final':first_final},
-                                                '$set':{'second_final':second_final}
+                                                '$set':{
+                                                    'first_final':first_final,
+                                                    'second_final':second_final
+                                                }
                                             }
                                         )
 
