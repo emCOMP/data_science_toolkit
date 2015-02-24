@@ -131,8 +131,11 @@ class TweetSampler(object):
             self._create_sample(num=0,f=f,start=start)
 
     # helper method for creating a list of unique tweets from a rumor
-    def _compress_tweets(self):
-        tweet_list = self._find_tweets()
+    def _compress_tweets(self,sample=False):
+        if sample:
+            tweet_list = self.rumor_collection.find({'sample':True})
+        else:
+            tweet_list = self._find_tweets()
         try:
             count = self.compression.find().sort('db_id',-1).limit(1).next()['db_id'] + 1
         except StopIteration:
@@ -177,18 +180,65 @@ class TweetSampler(object):
                                                                 'first_code':first_code,
                                                                 'second_code':second_code}}})
 
+    # helper method to create time chunked bins for sampling based tweet number
+    # store bin assignments in rumor_collection db
+    def _create_sample_bins(self,bin_size):
+        tweet_list = rumor_collection.find().sort('created_ts',1)
+        sample_bin = 0
+        for count,tweet in enumerate(tweet_list):
+            self.rumor_collection.update(
+                {'id':tweet['id']},
+                {'$set':{'sample_bin':sample_bin}}
+            )
+            if count % bin_size == 0:
+                sample_bin += 1
+        return sample_bin
+
+    # helper method to randomly sample from bins
+    # store sample:true in rumor_collection db
+    def _create_random_collection(self,sample_size):
+        start = 0
+        end = self.rumor_collection.find().sort('sample_bin',-1).limit(1).next()['sample_bin']
+        for sample_bin in xrange(start,end):
+            tweet_list = [x['id'] for x in self.rumor_collection.find({'sample_bin':sample_bin})]
+            sample = random.sample(tweet_list,sample_size)
+            for tweet in sample:
+                self.rumor_collection.update({'id':tweet},
+                                             {'$set':{'sample':True}})
+
+    # create a random collection of tweets for large rumors
+    def random_collection(self):
+        print 'enter number of unique tweets'
+        num_uniques = raw_input('>> ')
+        print 'enter desired bin size'
+        bin_size = raw_input('>> ')
+        self.compress_tweets()
+        total_tweets = self.rumor_collection.count()
+        unqiues_ratio = float(total_tweets)/self.rumor_compression.count()
+        self.comress_tweets.drop()
+        sample_tweet_count = int(num_uniques*uniques_ratio)
+        num_bins = self._create_sample_bins(bin_size=bin_size)
+        sample_size = int(sample_tweet_count/num_bins)
+        self._create_random_sample(sample_size=sample_size)
+        self.compress_tweets(sample=True)
+
 def main():
     # the event identifier
     event = 'mh17'
     # the rumor identifier
     rumor = 'americans_onboard'
+
     t = TweetSampler(event_name=event,rumor=rumor)
+
     # uncomment to find unqiues
     t.compress_tweets()
+
     # uncomment to create a random sample
     #t.create_sample(edit_distance=True)
+
     # uncomment to create a full sample of uniques
     t.create_sample(edit_distance=False)
+
     # uncomment to apply codes to non-uniques
     #t.expand_tweets()
 
