@@ -159,4 +159,35 @@ rumor_terms = {
             }
         ]
     },
+    'americans_onboard':
+    {
+        '$and':[
+            {
+                '$or':[
+                    {'text':re.compile('passenger',re.IGNORECASE)},
+                    {'text':re.compile('board',re.IGNORECASE)},
+                    {'text':re.compile('23',re.IGNORECASE)},
+                ]
+            },
+            {
+                '$or':[
+                    {'text':re.compile('americans',re.IGNORECASE)},
+                    {'text':re.compile('us citizen',re.IGNORECASE)},
+                ]
+            }
+        ]
+    },
+    'rebels':
+    {
+        '$and':[
+            {'text':re.compile('ukrain',re.IGNORECASE)},
+            {'text':re.compile('shot',re.IGNORECASE)},
+            {
+                '$or':[
+                    {'text':re.compile(' rebel',re.IGNORECASE)},
+                    {'text':re.compile('separatist',re.IGNORECASE)}
+                ]
+            }
+        ]
+    }
 }
