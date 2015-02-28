@@ -1,7 +1,26 @@
 import re
 
 rumor_terms = {
-    ## EBOLA RUMORS ##
+    ### MH17 RUMORS ##
+    'blackbox':{
+        '$and':[
+            {
+                '$or':[
+                    {'text':re.compile('rebels',re.IGNORECASE)},
+                    {'text':re.compile('separatists',re.IGNORECASE)},
+                    {'text':re.compile('terrorists',re.IGNORECASE)}
+                ]
+            },
+            {
+                '$or':[
+                    {'text':re.compile('blackbox',re.IGNORECASE)},
+                    {'text':re.compile('black box',re.IGNORECASE)},
+                    {'text':re.compile('recorder',re.IGNORECASE)}
+                ]
+            }
+        ]
+    },
+	# EBOLA RUMORS ##
     'red_cross':{
         '$and':[
             {'text':re.compile('vaccine',re.IGNORECASE)},
