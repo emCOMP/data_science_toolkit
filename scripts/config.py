@@ -209,4 +209,64 @@ rumor_terms = {
             }
         ]
     }
+    'american_falseflag':
+    {
+        '$and':[
+            {
+                '$or':[
+                    {'text':re.compile('falseflag',re.IGNORECASE)},
+                    {'text':re.compile('false flag',re.IGNORECASE)},
+                ]
+            },
+            {
+                '$or':[
+                    {'text':re.compile('america',re.IGNORECASE)},
+                    {'text':re.compile('usa',re.IGNORECASE)},
+                ]
+            }
+        ]
+    },
+    'israel_falseflag':
+    {
+        '$and':[
+            {
+                '$or':[
+                    {'text':re.compile('falseflag',re.IGNORECASE)},
+                    {'text':re.compile('false flag',re.IGNORECASE)},
+                ]
+            },
+            {
+                '$or':[
+                    {'text':re.compile('israel',re.IGNORECASE)},
+                    {'text':re.compile('zion',re.IGNORECASE)},
+                ]
+            }
+        ]
+    },
+    'same_plane':
+    {
+        '$and':[
+            {'text':re.compile('mh17',re.IGNORECASE)},
+            {'text':re.compile('mh370',re.IGNORECASE)},
+            {'text':re.compile('same',re.IGNORECASE)},
+        ]
+    },
+    'blackbox':{
+        '$and':[
+            {
+                '$or':[
+                    {'text':re.compile('rebels',re.IGNORECASE)},
+                    {'text':re.compile('separatists',re.IGNORECASE)},
+                    {'text':re.compile('terrorists',re.IGNORECASE)}
+                ]
+            },
+            {
+                '$or':[
+                    {'text':re.compile('blackbox',re.IGNORECASE)},
+                    {'text':re.compile('black box',re.IGNORECASE)},
+                    {'text':re.compile('recorder',re.IGNORECASE)}
+                ]
+            }
+        ]
+    },
 }

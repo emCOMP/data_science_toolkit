@@ -79,7 +79,7 @@ class Processor(object):
                                 for count,col in enumerate(row):
                                     if header[count] == 'db_id':
                                         tweet_id = col
-                                    elif header[count] == 'text':
+                                    elif header[count].lower() == 'text':
                                         tweet_text = col.decode('latin-1').encode('utf-8')
                                     elif col is not '' and header[count] in self.first_codes:
                                         codes['first'] = header[count]
@@ -106,6 +106,12 @@ class Processor(object):
     # Adjudicate codes for each coded tweet.
     # Add fields for first and second tier codes
     def adjudicate_db(self):
+        print 'Machine adjudicate without adjudication sheet (Y/n)?'
+        user_in = raw_input('>> ')
+        if user_in == 'n':
+            machine_adj = False
+        else:
+            machine_adj = True
         tweets = self.code_comparison.find()
         for tweet in tweets:
             code_counts = {}
@@ -265,22 +271,15 @@ class Processor(object):
                 f_out.write(result)
 
 def main():
-    #adjudicate()
-    #codes = ['Uncodable','Unrelated','Affirm','Deny','Neutral']
-    #alt_codes = [['Uncertainty'],['Ambiguity'],['Implicit']]
+    # the rumor identifier
     rumor = 'airspace'
+    # the number of pre-adjudication coders
     coders = 3
-    #code_comparison = utils.mongo_connect(db_name='code_comparison',collection_name=rumor)
-    #compression = utils.mongo_connect(db_name='sydneysiege_cache',collection_name=rumor)
     p = Processor(rumor=rumor,num_coders=coders)
     p.read_codes()
     p.adjudicate_db()
-    #p.write_adjudication()
-    #adjudicate_db(db=code_comparison,coders=coders)
-    #p.coder_agreement()
-    #for x in alt_codes:
-    #    coder_agreement(db=code_comparison,coders=coders,codes=x)
-    #agreement_sheet(db=code_comparison,coders=coders)
+    p.adjudicate_db()
+    p.write_adjudication()
 
 if __name__ == "__main__":
     main()
