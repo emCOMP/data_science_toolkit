@@ -79,7 +79,7 @@ class Processor(object):
                                 for count,col in enumerate(row):
                                     if header[count] == 'db_id':
                                         tweet_id = col
-                                    elif header[count] == 'text':
+                                    elif header[count].lower() == 'text':
                                         tweet_text = col.decode('latin-1').encode('utf-8')
                                     elif col is not '' and header[count] in self.first_codes:
                                         codes['first'] = header[count]
@@ -108,10 +108,10 @@ class Processor(object):
     def adjudicate_db(self):
         print 'Machine adjudicate without adjudication sheet (Y/n)?'
         user_in = raw_input('>> ')
-        if user_in == 'y':
-            machine_adj = True
-        else:
+        if user_in == 'n':
             machine_adj = False
+        else:
+            machine_adj = True
         tweets = self.code_comparison.find()
         for tweet in tweets:
             code_counts = {}
@@ -293,12 +293,13 @@ def old_main():
 
 def main():
     # the rumor identifier
-    rumor = 'hadley'
+    rumor = 'airspace'
     # the number of pre-adjudication coders
     coders = 3
     p = Processor(rumor=rumor,num_coders=coders)
     #p.read_codes()
-    #p.adjudicate_db()
+    p.adjudicate_db()
+    #p.write_adjudication()
     p.write_adjudication()
     #p.coder_agreement()
 
