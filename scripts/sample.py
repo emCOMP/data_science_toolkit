@@ -221,26 +221,37 @@ class TweetSampler(object):
         num_uniques = int(raw_input('>> '))
         print 'enter desired bin size'
         bin_size = int(raw_input('>> '))
-        #self.compress_tweets()
+        self.compress_tweets()
         total_tweets = self.rumor_collection.count()
-        uniques_ratio = 4.10604615678#float(total_tweets)/self.compression.count()
+        uniques_ratio = float(total_tweets)/self.compression.count()
         self.compression.drop()
         print uniques_ratio, num_uniques
         sample_tweet_count = int(num_uniques*uniques_ratio)
-        user_in = None
+        create_bins = 'y'
         if self.rumor_collection.find_one({'sample_bin':{'$exists':True}}):
-            print 'sample bins already exist.  create new bins (y/N)?'
-            user_in = raw_input('>> ')
-        if user_in.lower() == 'y':
+            print 'sample bins already exist.  create new bins (Y/n)?'
+            create_bins = raw_input('>> ')
+        if create_bins.lower() == 'y':
             self._create_sample_bins(bin_size=bin_size)
-        self._create_random_collection(sample_size=int(sample_tweet_count))
-        self.compress_tweets(sample=True)
+        create_new_sample = 'y'
+        if self.rumor_collection.find_one({'sample':{'$exists':True}}):
+            print 'reset sample (Y/n)?'
+            create_new_sample = raw_input('>> ')
+        if create_new_sample.lower() == 'y':
+            self.rumor_collection.update(
+                {'sample':{'$exists':True}},
+                {'$unset':{'sample':1}},
+                multi=True)
+            self._create_random_collection(sample_size=int(sample_tweet_count))
+            print '[INFO] finished sampling'
+            self.compress_tweets(sample=True)
+            print '[INFO] finished creating uniques collection'
 
 def main():
     # the event identifier
     event = 'mh17'
     # the rumor identifier
-    rumor = 'americans_onboard'
+    rumor = 'blackbox'
 
     t = TweetSampler(event_name=event,rumor=rumor)
 

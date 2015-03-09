@@ -208,7 +208,7 @@ rumor_terms = {
                 ]
             }
         ]
-    }
+    },
     'american_falseflag':
     {
         '$and':[
