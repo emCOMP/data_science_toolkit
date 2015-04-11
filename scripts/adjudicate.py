@@ -150,7 +150,7 @@ class Processor(object):
         fname = raw_input('>> ')
         f_out = utils.write_to_samples(path=(fname + '.csv'))
         f_out.write('"db_id","rumor","text"\n')
-        if level == 1:
+        if level == "1":
             query = {'first_final':'Adjudicate'}
         else:
             query = {'second_final':'Adjudicate'}
@@ -158,7 +158,7 @@ class Processor(object):
         for tweet in tweets:
             final_codes = ''
             for code in tweet['codes']:
-                if level == 1:
+                if level == "1":
                     final_codes += '%s,' % code['first']
                 else:
                     for x in code:
@@ -286,7 +286,7 @@ def main():
     p = Processor(rumor=rumor,num_coders=coders)
     #comment/uncomment this to read codes from sheets
     #p.read_codes()
-    p.adjudicate_db()
+    #p.adjudicate_db()
     
     #Uncomment these to get the adjudication sheets
     p.write_adjudication()
