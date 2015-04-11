@@ -2,6 +2,12 @@ import datetime
 import utils
 from collections import Counter
 from bson.son import SON
+import csv, random, sys
+
+def write_to_csv(filename, result):
+  with open("{filename!s}_results.csv".format(**locals()), "wb") as f:
+      writer = csv.writer(f)
+      writer.writerows(result)
 
 def total_tweets_over_time(db,fname):
 
@@ -107,17 +113,19 @@ def _codes_over_time(db,fname,code,gran):
                 'codes.first_code':code
             })
             
-            total_followers_count = 0
+            result = []
             for tweet in data:
-              total_followers_count = total_followers_count + tweet['user']['followers_count']
-            total_count = data.count()
-            result = '"%s",%d,%d\n' % (date_start,total_count,total_followers_count)
+              result += [tweet['user']['followers_count']]
+            #total_count = data.count()
+            #result = '"%s",%d,%d\n' % (date_start,total_count,total_followers_count)
+            print result
             f.write(result)
 
     elif gran == 'minute':
         start = db.find().limit(1).sort('created_ts',1).next()['created_ts'].replace(second=0)
         end = db.find().limit(1).sort('created_ts',-1).next()['created_ts'].replace(second=0) + datetime.timedelta(minutes=1)
         diff = (end - start).days * 1440
+        result = []
         for date_start in (start + datetime.timedelta(minutes=n) for n in range(diff)):
             date_end = date_start + datetime.timedelta(seconds=59)
        	    data = db.find({
@@ -128,12 +136,16 @@ def _codes_over_time(db,fname,code,gran):
                 'codes.first_code':code
             })
             
-            total_followers_count = 0
             for tweet in data:
-              total_followers_count = total_followers_count + tweet['user']['followers_count']
-            total_count = data.count()
-            result = '"%s",%d,%d\n' % (date_start,total_count,total_followers_count)
-            f.write(result)
+              print tweet
+              result += [[tweet['created_ts'], tweet['retweeted_status']['retweet_count'],tweet['retweeted_status']['retweeted'], tweet['user']['followers_count'], code]]
+            #print result
+            #total_count = data.count()
+        print "result"
+        print len(result)
+        print result[0]
+        print result[1]
+        write_to_csv(code,result)
 
 def top_hashtags(db,top,fname=None,write=False):
     if write:
@@ -240,7 +252,7 @@ def cooccuring_hashtags(db,num_top_nodes,num_co_nodes,fname=None,write=False):
 def main():
     db = utils.mongo_connect(db_name='sydneysiege')
     db_name = 'sydneysiege'
-    codes = ['Affirm','Deny','Neutral']
+    codes = ['Affirm','Deny']
     #total_tweets_over_time(db=db,fname='total_tweets_over_time_sydneysiege')
     #top_hashtags(db=db,top=1000,fname='top_hashtags_test',write=True)
     #top_mentions(db=db,top=1000,fname='sydneysiege_top_mentions',write=True)

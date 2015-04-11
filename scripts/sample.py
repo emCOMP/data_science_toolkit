@@ -249,9 +249,9 @@ class TweetSampler(object):
 
 def main():
     # the event identifier
-    event = 'mh17'
+    event = 'sydneysiege'
     # the rumor identifier
-    rumor = 'blackbox'
+    rumor = 'suicide'
 
     t = TweetSampler(event_name=event,rumor=rumor)
 
@@ -262,10 +262,10 @@ def main():
     #t.create_sample(edit_distance=True)
 
     # uncomment to create a full sample of uniques
-    t.create_sample(edit_distance=False)
+    #t.create_sample(edit_distance=False)
 
     # uncomment to apply codes to non-uniques
-    #t.expand_tweets()
+    t.expand_tweets()
 
     # uncomment to randomly sample codes for large rumors
     #t.random_collection()

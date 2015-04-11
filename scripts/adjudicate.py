@@ -284,9 +284,11 @@ def main():
     # the number of pre-adjudication coders
     coders = 3
     p = Processor(rumor=rumor,num_coders=coders)
+    #comment/uncomment this to read codes from sheets
     #p.read_codes()
-    #p.adjudicate_db()
-    #p.adjudicate_db()
+    p.adjudicate_db()
+    
+    #Uncomment these to get the adjudication sheets
     p.write_adjudication()
 
 if __name__ == "__main__":

@@ -1,7 +1,49 @@
 import re
 
 rumor_terms = {
-    ### MH17 RUMORS ##
+    ### DC power outage Rumors ##
+    'explosion':{
+        '$or':[
+            {'text':re.compile('explosion',re.IGNORECASE)},
+            {'text':re.compile('blast',re.IGNORECASE)},
+            {'text':re.compile('boom',re.IGNORECASE)}
+        ]
+    },
+    'foul_play':{
+        '$or':[
+            {'text':re.compile('foul',re.IGNORECASE)},
+            {'text':re.compile('terror',re.IGNORECASE)},
+            {'text':re.compile('attack',re.IGNORECASE)},
+            {'text':re.compile('hack',re.IGNORECASE)}
+        ]
+    },
+    ### WestJet Rumors ##
+    'signal':{
+        '$or':[
+            {'text':re.compile('squawk',re.IGNORECASE)},
+            {'text':re.compile('code',re.IGNORECASE)},
+            {'text':re.compile('alarm',re.IGNORECASE)},
+            {'text':re.compile('signal',re.IGNORECASE)},
+            {'text':re.compile('button',re.IGNORECASE)},
+            {'text':re.compile('transponder',re.IGNORECASE)},
+            {'text':re.compile('7500')}
+        ]
+    },
+    'hijacking':{
+        '$or':[
+            {'text':re.compile('squawk',re.IGNORECASE)},
+            {'text':re.compile('signal',re.IGNORECASE)},
+            {'text':re.compile('button',re.IGNORECASE)},
+            {'text':re.compile('plane',re.IGNORECASE)},
+            {'text':re.compile('pilot',re.IGNORECASE)},
+            {'text':re.compile('transponder',re.IGNORECASE)},
+            {'text':re.compile('west',re.IGNORECASE)},
+            {'text':re.compile('flight',re.IGNORECASE)},
+            {'text':re.compile('jet',re.IGNORECASE)},
+            {'text':re.compile('7500')},
+        ]
+    },
+   ### MH17 RUMORS ##
     'blackbox':{
         '$and':[
             {
