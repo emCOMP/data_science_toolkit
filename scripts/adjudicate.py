@@ -10,7 +10,7 @@ class Processor(object):
         self.code_comparison = utils.mongo_connect(db_name='code_comparison',
                                                    collection_name=rumor)
         # db for mapping unique tweets to non-uniques
-        self.compression = utils.mongo_connect(db_name='sydneysiege_cache',
+        self.compression = utils.mongo_connect(db_name='rumor_compression',
                                                collection_name=rumor)
         # db mapping coder names to coder ids
         self.coders = utils.mongo_connect(db_name='coders',
@@ -156,7 +156,15 @@ class Processor(object):
             query = {'second_final':'Adjudicate'}
         tweets = self.code_comparison.find(query)
         for tweet in tweets:
-            result = '"%s","%s","%s"\n' % (tweet['db_id'],self.rumor,tweet['text'])
+            final_codes = ''
+            for code in tweet['codes']:
+                if level == 1:
+                    final_codes += '%s,' % code['first']
+                else:
+                    for x in code:
+                        if x in self.second_codes:
+                            final_codes += '%s,' % x
+            result = '"%s","%s","%s","%s",\n' % (tweet['db_id'],self.rumor,tweet['text'],final_codes)
             f_out.write(result.encode('utf-8'))
 
     # old helper method for adjudicating to file
@@ -272,13 +280,13 @@ class Processor(object):
 
 def main():
     # the rumor identifier
-    rumor = 'airspace'
+    rumor = 'hijacking'
     # the number of pre-adjudication coders
     coders = 3
     p = Processor(rumor=rumor,num_coders=coders)
-    p.read_codes()
-    p.adjudicate_db()
-    p.adjudicate_db()
+    #p.read_codes()
+    #p.adjudicate_db()
+    #p.adjudicate_db()
     p.write_adjudication()
 
 if __name__ == "__main__":
