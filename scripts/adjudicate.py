@@ -79,7 +79,7 @@ class Processor(object):
                                 for count,col in enumerate(row):
                                     if header[count] == 'db_id':
                                         tweet_id = col
-                                    elif header[count] == 'text':
+                                    elif header[count].lower() == 'text':
                                         tweet_text = col.decode('latin-1').encode('utf-8')
                                     elif col is not '' and header[count] in self.first_codes:
                                         codes['first'] = header[count]
@@ -106,9 +106,9 @@ class Processor(object):
     # Adjudicate codes for each coded tweet.
     # Add fields for first and second tier codes
     def adjudicate_db(self):
-        print 'Are you adding an adjudication sheet (y/N)?'
+        print 'Machine adjudicate without adjudication sheet (Y/n)?'
         user_in = raw_input('>> ')
-        if user_in == 'y':
+        if user_in == 'n':
             machine_adj = False
         else:
             machine_adj = True
@@ -121,7 +121,7 @@ class Processor(object):
                     code_counts[code] = code_counts.get(code,0) + codes.get(code,0)
             second_final = []
             for code in self.second_codes:
-                if code_counts[code] == 1 and machine_adj:
+                if code_counts[code] == 1:
                     second_final = ['Adjudicate']
                     break
                 elif float(code_counts.get(code,0))/self.num_coders > .5:
@@ -131,36 +131,26 @@ class Processor(object):
                 first_final = self.first_codes[0]
             else:
                 first_final = 'Adjudicate'
-            if machine_adj:
-                self.code_comparison.update({'db_id':tweet['db_id']},
-                                            {
-                                                '$set':{'first_final':first_final},
-                                                '$addToSet':{
-                                                    'second_final':{
-                                                        '$each':second_final
-                                                    }
+            self.code_comparison.update({'db_id':tweet['db_id']},
+                                        {
+                                            '$set':{'first_final':first_final},
+                                            '$addToSet':{
+                                                'second_final':{
+                                                    '$each':second_final
                                                 }
                                             }
-                                        )
-            else:
-                self.code_comparison.update({'db_id':tweet['db_id']},
-                                            {
-                                                '$set':{
-                                                    'first_final':first_final,
-                                                    'second_final':second_final
-                                                }
-                                            }
-                                        )
+                                        }
+                                    )
 
     # create a coding csv file of just tweets needing human adjudication
     def write_adjudication(self):
         print '1st or 2nd level adjudication (1/2)?'
-        level = int(raw_input('>> '))
+        level = raw_input('>> ')
         print 'enter a valid file name'
         fname = raw_input('>> ')
         f_out = utils.write_to_samples(path=(fname + '.csv'))
-        f_out.write('"db_id","rumor","text","codes"\n')
-        if level == 1:
+        f_out.write('"db_id","rumor","text"\n')
+        if level == "1":
             query = {'first_final':'Adjudicate'}
         else:
             query = {'second_final':'Adjudicate'}
@@ -168,7 +158,7 @@ class Processor(object):
         for tweet in tweets:
             final_codes = ''
             for code in tweet['codes']:
-                if level == 1:
+                if level == "1":
                     final_codes += '%s,' % code['first']
                 else:
                     for x in code:
@@ -260,7 +250,7 @@ class Processor(object):
         print mat
         aggreement = kappa.computeKappa(mat)
 
-    # old method for showing agreement numbers
+
     def agreement_sheet(self,db,coders):
         print 'enter a valid output file name:'
         fname_out = raw_input('>> ')
@@ -288,29 +278,18 @@ class Processor(object):
             if not agreement:
                 f_out.write(result)
 
-# depreciated methods
-# use main()
-def old_main():
-    adjudicate()
-    codes = ['Uncodable','Unrelated','Affirm','Deny','Neutral']
-    alt_codes = [['Uncertainty'],['Ambiguity'],['Implicit']]
-    code_comparison = utils.mongo_connect(db_name='code_comparison',collection_name=rumor)
-    compression = utils.mongo_connect(db_name='sydneysiege_cache',collection_name=rumor)
-    adjudicate_db(db=code_comparison,coders=coders)
-    for x in alt_codes:
-        coder_agreement(db=code_comparison,coders=coders,codes=x)
-    agreement_sheet(db=code_comparison,coders=coders)
-
 def main():
     # the rumor identifier
-    rumor = 'hadley'
+    rumor = 'hijacking'
     # the number of pre-adjudication coders
     coders = 3
     p = Processor(rumor=rumor,num_coders=coders)
-    p.read_codes()
-    p.adjudicate_db()
-    #p.write_adjudication()
-    #p.coder_agreement()
+    #comment/uncomment this to read codes from sheets
+    #p.read_codes()
+    #p.adjudicate_db()
+    
+    #Uncomment these to get the adjudication sheets
+    p.write_adjudication()
 
 if __name__ == "__main__":
     main()

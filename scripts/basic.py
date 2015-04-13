@@ -1,6 +1,13 @@
 import datetime
 import utils
 from collections import Counter
+from bson.son import SON
+import csv, random, sys
+
+def write_to_csv(filename, result):
+  with open("{filename!s}_results.csv".format(**locals()), "wb") as f:
+      writer = csv.writer(f)
+      writer.writerows(result)
 
 def total_tweets_over_time(db,fname):
 
@@ -24,7 +31,7 @@ def total_tweets_over_time(db,fname):
                 "$lte":date_end
             },
         }).count()
-
+        print raw_data
         result = '"%s",%d\n' % (date_start,raw_data)
         f.write(result)
 
@@ -90,40 +97,55 @@ def codes_over_time(db_name,codes,rumor,gran='hour'):
 def _codes_over_time(db,fname,code,gran):
     title = "%s.csv" % (fname)
     f = utils.write_to_data(path=title)
-    f.write('time,total tweets\n')
+    f.write('time,total tweets,total_followers\n')
     if gran == 'hour':
         start = db.find().limit(1).sort('created_ts',1).next()['created_ts'].replace(minute=0,second=0)
         end = db.find().limit(1).sort('created_ts',-1).next()['created_ts'].replace(minute=0,second=0) + datetime.timedelta(hours=1)
         diff = (end - start).days * 24 #1440 for hour
         for date_start in (start + datetime.timedelta(hours=n) for n in range(diff)):
             date_end = date_start + datetime.timedelta(minutes=59)
-            raw_data = db.find({
+            
+	    data = db.find({
                 "created_ts":{
                     "$gte":date_start,
                     "$lte":date_end
                 },
-                'codes.code':code
-            }).count()
-
-            result = '"%s",%d\n' % (date_start,raw_data)
+                'codes.first_code':code
+            })
+            
+            result = []
+            for tweet in data:
+              result += [tweet['user']['followers_count']]
+            #total_count = data.count()
+            #result = '"%s",%d,%d\n' % (date_start,total_count,total_followers_count)
+            print result
             f.write(result)
 
     elif gran == 'minute':
         start = db.find().limit(1).sort('created_ts',1).next()['created_ts'].replace(second=0)
         end = db.find().limit(1).sort('created_ts',-1).next()['created_ts'].replace(second=0) + datetime.timedelta(minutes=1)
         diff = (end - start).days * 1440
+        result = []
         for date_start in (start + datetime.timedelta(minutes=n) for n in range(diff)):
             date_end = date_start + datetime.timedelta(seconds=59)
-            raw_data = db.find({
+       	    data = db.find({
                 "created_ts":{
                     "$gte":date_start,
                     "$lte":date_end
                 },
-                'codes.code':code
-            }).count()
-
-            result = '"%s",%d\n' % (date_start,raw_data)
-            f.write(result)
+                'codes.first_code':code
+            })
+            
+            for tweet in data:
+              print tweet
+              result += [[tweet['created_ts'], tweet['retweeted_status']['retweet_count'],tweet['retweeted_status']['retweeted'], tweet['user']['followers_count'], code]]
+            #print result
+            #total_count = data.count()
+        print "result"
+        print len(result)
+        print result[0]
+        print result[1]
+        write_to_csv(code,result)
 
 def top_hashtags(db,top,fname=None,write=False):
     if write:
@@ -230,13 +252,14 @@ def cooccuring_hashtags(db,num_top_nodes,num_co_nodes,fname=None,write=False):
 def main():
     db = utils.mongo_connect(db_name='sydneysiege')
     db_name = 'sydneysiege'
-    codes = ['Affirm','Deny','Neutral']
+    codes = ['Affirm','Deny']
     #total_tweets_over_time(db=db,fname='total_tweets_over_time_sydneysiege')
-    top_hashtags(db=db,top=1000,fname='top_hashtags_test',write=True)
+    #top_hashtags(db=db,top=1000,fname='top_hashtags_test',write=True)
     #top_mentions(db=db,top=1000,fname='sydneysiege_top_mentions',write=True)
     #cooccuring_hashtags(db=db,num_top_nodes=100,num_co_nodes=100,fname='cooccuring_sydneysiege_1000',write=True)
     #feature_over_time(db=db,fname='tcot2_over_time',feature='hashtag',name='tcot',gran='hour')
-    #codes_over_time(db_name=db_name,codes=codes,rumor='hadley',gran='minute')
+    codes_over_time(db_name=db_name,codes=codes,rumor='lakemba',gran='minute')
+    print "done"
     '''multi_feature_over_time(db=db,feature='hashtag',names=['illridewithyou',
                                                            'martinplace',
                                                            'prayforsydney',

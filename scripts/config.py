@@ -1,7 +1,68 @@
 import re
 
 rumor_terms = {
-    ## EBOLA RUMORS ##
+    ### DC power outage Rumors ##
+    'explosion':{
+        '$or':[
+            {'text':re.compile('explosion',re.IGNORECASE)},
+            {'text':re.compile('blast',re.IGNORECASE)},
+            {'text':re.compile('boom',re.IGNORECASE)}
+        ]
+    },
+    'foul_play':{
+        '$or':[
+            {'text':re.compile('foul',re.IGNORECASE)},
+            {'text':re.compile('terror',re.IGNORECASE)},
+            {'text':re.compile('attack',re.IGNORECASE)},
+            {'text':re.compile('hack',re.IGNORECASE)}
+        ]
+    },
+    ### WestJet Rumors ##
+    'signal':{
+        '$or':[
+            {'text':re.compile('squawk',re.IGNORECASE)},
+            {'text':re.compile('code',re.IGNORECASE)},
+            {'text':re.compile('alarm',re.IGNORECASE)},
+            {'text':re.compile('signal',re.IGNORECASE)},
+            {'text':re.compile('button',re.IGNORECASE)},
+            {'text':re.compile('transponder',re.IGNORECASE)},
+            {'text':re.compile('7500')}
+        ]
+    },
+    'hijacking':{
+        '$or':[
+            {'text':re.compile('squawk',re.IGNORECASE)},
+            {'text':re.compile('signal',re.IGNORECASE)},
+            {'text':re.compile('button',re.IGNORECASE)},
+            {'text':re.compile('plane',re.IGNORECASE)},
+            {'text':re.compile('pilot',re.IGNORECASE)},
+            {'text':re.compile('transponder',re.IGNORECASE)},
+            {'text':re.compile('west',re.IGNORECASE)},
+            {'text':re.compile('flight',re.IGNORECASE)},
+            {'text':re.compile('jet',re.IGNORECASE)},
+            {'text':re.compile('7500')},
+        ]
+    },
+   ### MH17 RUMORS ##
+    'blackbox':{
+        '$and':[
+            {
+                '$or':[
+                    {'text':re.compile('rebels',re.IGNORECASE)},
+                    {'text':re.compile('separatists',re.IGNORECASE)},
+                    {'text':re.compile('terrorists',re.IGNORECASE)}
+                ]
+            },
+            {
+                '$or':[
+                    {'text':re.compile('blackbox',re.IGNORECASE)},
+                    {'text':re.compile('black box',re.IGNORECASE)},
+                    {'text':re.compile('recorder',re.IGNORECASE)}
+                ]
+            }
+        ]
+    },
+	# EBOLA RUMORS ##
     'red_cross':{
         '$and':[
             {'text':re.compile('vaccine',re.IGNORECASE)},
@@ -189,5 +250,65 @@ rumor_terms = {
                 ]
             }
         ]
-    }
+    },
+    'american_falseflag':
+    {
+        '$and':[
+            {
+                '$or':[
+                    {'text':re.compile('falseflag',re.IGNORECASE)},
+                    {'text':re.compile('false flag',re.IGNORECASE)},
+                ]
+            },
+            {
+                '$or':[
+                    {'text':re.compile('america',re.IGNORECASE)},
+                    {'text':re.compile('usa',re.IGNORECASE)},
+                ]
+            }
+        ]
+    },
+    'israel_falseflag':
+    {
+        '$and':[
+            {
+                '$or':[
+                    {'text':re.compile('falseflag',re.IGNORECASE)},
+                    {'text':re.compile('false flag',re.IGNORECASE)},
+                ]
+            },
+            {
+                '$or':[
+                    {'text':re.compile('israel',re.IGNORECASE)},
+                    {'text':re.compile('zion',re.IGNORECASE)},
+                ]
+            }
+        ]
+    },
+    'same_plane':
+    {
+        '$and':[
+            {'text':re.compile('mh17',re.IGNORECASE)},
+            {'text':re.compile('mh370',re.IGNORECASE)},
+            {'text':re.compile('same',re.IGNORECASE)},
+        ]
+    },
+    'blackbox':{
+        '$and':[
+            {
+                '$or':[
+                    {'text':re.compile('rebels',re.IGNORECASE)},
+                    {'text':re.compile('separatists',re.IGNORECASE)},
+                    {'text':re.compile('terrorists',re.IGNORECASE)}
+                ]
+            },
+            {
+                '$or':[
+                    {'text':re.compile('blackbox',re.IGNORECASE)},
+                    {'text':re.compile('black box',re.IGNORECASE)},
+                    {'text':re.compile('recorder',re.IGNORECASE)}
+                ]
+            }
+        ]
+    },
 }

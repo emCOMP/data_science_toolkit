@@ -36,6 +36,7 @@ class TweetSampler(object):
                     insert_list = []
             rumor_collection.insert(insert_list)
             rumor_collection.ensure_index('id')
+            rumor_collection.ensure_index('created_ts')
         else:
             print '[INFO] rumor collection exists'
         return rumor_collection
@@ -67,9 +68,9 @@ class TweetSampler(object):
 
     # helper method to create a random sample using edit distance
     # default edit distance of 20
-    def _create_sample_old(self,num,f,scrub_url=True,edit_distance=20):
+    def _create_sample_old(self,num,f,scrub_url=True,edit_distance=40):
 
-        tweet_list = [x for x in self._find_tweets()]
+        tweet_list = self._find_tweets()
         print '[INFO] created full rumor list'
 
         count = 0
@@ -131,8 +132,11 @@ class TweetSampler(object):
             self._create_sample(num=0,f=f,start=start)
 
     # helper method for creating a list of unique tweets from a rumor
-    def _compress_tweets(self):
-        tweet_list = self._find_tweets()
+    def _compress_tweets(self,sample):
+        if sample:
+            tweet_list = self.rumor_collection.find({'sample':True})
+        else:
+            tweet_list = self._find_tweets()
         try:
             count = self.compression.find().sort('db_id',-1).limit(1).next()['db_id'] + 1
         except StopIteration:
@@ -154,17 +158,17 @@ class TweetSampler(object):
 
     # create a list of unique tweets
     # check to make sure compression hasn't already been run
-    def compress_tweets(self):
+    def compress_tweets(self,sample=False):
         test = self.compression.find_one()
         if test:
             print '[INFO] uniques collection already exists!'
             print '[INFO] drop uniques collection to compress again'
         else:
             print '[INFO] creating uniques list'
-            self._compress_tweets()
+            self._compress_tweets(sample)
 
     # apply codes from unique coded tweets to a rumor specific collection
-    def expand_tweets(self):
+    def expand_tweets(self,sample=False):
         print '[INFO] expanding tweets'
         compressed_list = self.code_comparison.find()
         for tweet in compressed_list:
@@ -173,25 +177,98 @@ class TweetSampler(object):
             second_code = tweet.get('second_final',[])
             tweet_list = self.compression.find_one({'db_id':db_id})
             for tweets in set(tweet_list['id']):
-                self.rumor_collection.update({'id':tweets},
-                                             {'$push':{'codes':{'rumor':self.rumor,
-                                                                'first_code':first_code,
-                                                                'second_code':second_code}}})
+                if sample:
+                    self.rumor_collection.update({'id':tweets,'sample_bin':{'$exists':True}},
+                                                 {'$push':{'codes':{'rumor':self.rumor,
+                                                                    'first_code':first_code,
+                                                                    'second_code':second_code}}})
+                else:
+                    self.rumor_collection.update({'id':tweets},
+                                                 {'$push':{'codes':{'rumor':self.rumor,
+                                                                    'first_code':first_code,
+                                                                    'second_code':second_code}}})
+
+    # helper method to create time chunked bins for sampling based tweet number
+    # store bin assignments in rumor_collection db
+    def _create_sample_bins(self,bin_size):
+        bin_test = self.rumor_collection.find_one({'sample_bin':{'$exists':True}})
+        tweet_list = self.rumor_collection.find().sort('created_ts',1)
+        sample_bin = 0
+        for count,tweet in enumerate(tweet_list):
+            if count % bin_size == 0 and count > 0:
+                sample_bin += 1
+            self.rumor_collection.update(
+                {'id':tweet['id']},
+                {'$set':{'sample_bin':sample_bin}}
+            )
+
+    # helper method to randomly sample from bins
+    # store sample:true in rumor_collection db
+    def _create_random_collection(self,sample_size):
+        start = 0
+        end = self.rumor_collection.find().sort('sample_bin',-1).limit(1).next()['sample_bin']
+        for sample_bin in xrange(start,end):
+            tweet_list = [x['id'] for x in self.rumor_collection.find({'sample_bin':sample_bin})]
+            print len(tweet_list)
+            sample = random.sample(tweet_list,(sample_size/(end+1)))
+            for tweet in sample:
+                self.rumor_collection.update({'id':tweet},
+                                             {'$set':{'sample':True}})
+
+    # create a random collection of tweets for large rumors
+    def random_collection(self):
+        print 'enter number of unique tweets'
+        num_uniques = int(raw_input('>> '))
+        print 'enter desired bin size'
+        bin_size = int(raw_input('>> '))
+        self.compress_tweets()
+        total_tweets = self.rumor_collection.count()
+        uniques_ratio = float(total_tweets)/self.compression.count()
+        self.compression.drop()
+        print uniques_ratio, num_uniques
+        sample_tweet_count = int(num_uniques*uniques_ratio)
+        create_bins = 'y'
+        if self.rumor_collection.find_one({'sample_bin':{'$exists':True}}):
+            print 'sample bins already exist.  create new bins (Y/n)?'
+            create_bins = raw_input('>> ')
+        if create_bins.lower() == 'y':
+            self._create_sample_bins(bin_size=bin_size)
+        create_new_sample = 'y'
+        if self.rumor_collection.find_one({'sample':{'$exists':True}}):
+            print 'reset sample (Y/n)?'
+            create_new_sample = raw_input('>> ')
+        if create_new_sample.lower() == 'y':
+            self.rumor_collection.update(
+                {'sample':{'$exists':True}},
+                {'$unset':{'sample':1}},
+                multi=True)
+            self._create_random_collection(sample_size=int(sample_tweet_count))
+            print '[INFO] finished sampling'
+            self.compress_tweets(sample=True)
+            print '[INFO] finished creating uniques collection'
 
 def main():
     # the event identifier
-    event = 'mh17'
+    event = 'sydneysiege'
     # the rumor identifier
-    rumor = 'americans_onboard'
+    rumor = 'suicide'
+
     t = TweetSampler(event_name=event,rumor=rumor)
+
     # uncomment to find unqiues
-    t.compress_tweets()
+    #t.compress_tweets()
+
     # uncomment to create a random sample
     #t.create_sample(edit_distance=True)
+
     # uncomment to create a full sample of uniques
-    t.create_sample(edit_distance=False)
+    #t.create_sample(edit_distance=False)
+
     # uncomment to apply codes to non-uniques
-    #t.expand_tweets()
+    t.expand_tweets()
+
+    # uncomment to randomly sample codes for large rumors
+    #t.random_collection()
 
 
 # DON'T USE THESE
@@ -199,26 +276,26 @@ def main():
 def old_main():
 
     # list of dbs for creating samples from multiple databases
-    #dbs = [utils.mongo_connect(db_name='sydneysiege')]
+    dbs = [utils.mongo_connect(db_name='sydneysiege')]
     # single database for creating a sample
-    db = utils.mongo_connect(db_name='sydneysiege')
-    db_name = 'sydneysiege'
+    db = utils.mongo_connect(db_name='mh17')
+    db_name = 'mh17'
     # the cache database name for compression
-    cache_name = 'sydneysiege_cache'
+    cache_name = 'mh17_cache'
     code_comparison_name = 'code_comparison'
 
     # list of the rumors names.  check config.py for rumor names
-    rumor_list=['hadley']
+    rumor_list=['blackbox']
 
     # uncomment this code to compress tweets and create a full sample
     #for db in dbs:
     #rumor_collection(db_name=db_name,rumor_list=rumor_list)
-    #compress_tweets(db_name=db_name,rumor_list=rumor_list,cache_name=cache_name)
-    #create_sample(rumor_list=rumor_list,db=cache_name,dbs=dbs)
+    compress_tweets(db_name=db_name,rumor_list=rumor_list,cache_name=cache_name)
+    create_sample(rumor_list=rumor_list,db=cache_name,dbs=dbs)
 
-    rumor_collection(db_name=db_name,rumor_list=rumor_list)
+    #rumor_collection(db_name=db_name,rumor_list=rumor_list)
 
-    expand_tweets(db_name=db_name,cache_name=cache_name,code_comparison_name=code_comparison_name,rumor_list=rumor_list)
+    #expand_tweets(db_name=db_name,cache_name=cache_name,code_comparison_name=code_comparison_name,rumor_list=rumor_list)
 
     # uncomment this code to create a random sample.
     #create_sample(rumor_list=rumor_list,db=db,num=60,scrub_url=True,old=True)
