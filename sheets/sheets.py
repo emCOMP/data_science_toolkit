@@ -40,7 +40,8 @@ def write_to_csv(coder_name, tweets):
 tweets = [tweet+[0] for tweet in read_from_csv(get_sample_file())]
 coders = read_from_csv(get_coder_file())
 current_coverage = 0 # We first hit all tweets with 0 coverage, then 1 coverage and so on. This variable controls that
-
+print tweets[5]
+print len(tweets[5])
 for coder in coders[1:]: # 1 coder at a time
   assigned_tweets = []
   unassigned_tweets = tweets[1:]
