@@ -131,13 +131,12 @@ class Processor(object):
                 first_final = self.first_codes[0]
             else:
                 first_final = 'Adjudicate'
+            #print second_final
             self.code_comparison.update({'db_id':tweet['db_id']},
                                         {
-                                            '$set':{'first_final':first_final},
-                                            '$addToSet':{
-                                                'second_final':{
-                                                    '$each':second_final
-                                                }
+                                            '$set':{
+                                                'first_final':first_final,
+                                                'second_final':second_final
                                             }
                                         }
                                     )
@@ -280,16 +279,16 @@ class Processor(object):
 
 def main():
     # the rumor identifier
-    rumor = 'hijacking'
+    rumor = 'flag'
     # the number of pre-adjudication coders
     coders = 3
     p = Processor(rumor=rumor,num_coders=coders)
     #comment/uncomment this to read codes from sheets
     #p.read_codes()
-    #p.adjudicate_db()
+    p.adjudicate_db()
 
     #Uncomment these to get the adjudication sheets
-    p.write_adjudication()
+    #p.write_adjudication()
 
 if __name__ == "__main__":
     main()
