@@ -121,11 +121,11 @@ class Processor(object):
                     code_counts[code] = code_counts.get(code,0) + codes.get(code,0)
             second_final = []
             for code in self.second_codes:
-                if code_counts[code] == 1:
+                if code_counts[code] == 1 and machine_adj:
                     second_final = ['Adjudicate']
                     break
                 elif float(code_counts.get(code,0))/self.num_coders > .5:
-                         second_final.append(code)
+                    second_final.append(code)
             self.first_codes.sort(key=lambda x: code_counts.get(x,0), reverse=True)
             if float(code_counts.get(self.first_codes[0],0))/self.num_coders > .5:
                 first_final = self.first_codes[0]
@@ -287,7 +287,7 @@ def main():
     #comment/uncomment this to read codes from sheets
     #p.read_codes()
     #p.adjudicate_db()
-    
+
     #Uncomment these to get the adjudication sheets
     p.write_adjudication()
 
