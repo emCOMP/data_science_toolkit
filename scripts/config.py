@@ -312,3 +312,15 @@ rumor_terms = {
         ]
     },
 }
+
+filter_words = {
+    'hadley':['hostage','hadley','radio','host'],
+    'lakemba':['lakemba'],
+    'flag':['flag','isis','isil']
+    'suicide':['suicide','belt','vest','backpack']
+    'airspace':['airspace','air','space','flights','no','fly','no-fly']
+}
+
+event_terms = {
+    'sydneysiege':['sydneysiege','martinplacesiege','haron','monis','haronmonis','illridewithyou','martinplace','sydney','chocolate shop','nswpolice','prime minister','tony abbott','witness','lindt','siege','hostage','hostages','martin place','terrorise','terrorize','terrorists','flag']
+}
