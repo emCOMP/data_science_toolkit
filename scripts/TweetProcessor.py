@@ -3,7 +3,7 @@ import utils,re,config
 
 class TweetProcessor(object):
 
-    def __init__(self,event_name,rumor):
+    def __init__(self,event_name,rumor=None):
         # name of the event's db
         self.event = event_name
         # name of the rumor to sample/compress/expand
@@ -17,7 +17,8 @@ class TweetProcessor(object):
         self.compression = utils.mongo_connect(db_name='rumor_compression',
                                                collection_name=self.rumor)
         # db collection for the individual rumor
-        self.rumor_collection = self._create_rumor_collection()
+        if rumor:
+            self.rumor_collection = self._create_rumor_collection()
 
     # check for a rumor specific collection
     # make collection if doesn't exist

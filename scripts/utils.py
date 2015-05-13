@@ -1,4 +1,5 @@
 import os
+import csv
 from collections import Counter
 from pymongo import MongoClient
 
@@ -6,6 +7,13 @@ def write_to_data(path=''):
     fpath = os.path.join(os.path.dirname(__file__),os.pardir,'data/') + path
     f = open(fpath, 'w')
     return f
+
+def read_from_data(path=''):
+    fpath = os.path.join(os.path.dirname(__file__),os.pardir,'data/') + path
+    with open(fpath, 'rb') as codesheet:
+        reader = csv.reader(codesheet)
+    return reader
+
 
 def write_to_samples(path=''):
     fpath = os.path.join(os.path.dirname(__file__),os.pardir,'samples/') + path

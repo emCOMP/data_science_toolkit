@@ -2,23 +2,38 @@ from TweetProcessor import TweetProcessor
 from collections import Counter
 from nltk.corpus import stopwords
 from nltk.stem.porter import *
+from nltk.collocations import *
 from sklearn.feature_extraction.text import TfidfVectorizer
+from itertools import islice, izip
 import nltk
 import string
 import os
 import re
 import config
 import random
+import csv
+import utils
 
 class UncertaintyAnalysis(TweetProcessor):
 
-    def __init__(self,event_name,rumor):
+    def __init__(self,event_name,rumor=None):
         TweetProcessor.__init__(self,event_name=event_name,
                                 rumor=rumor)
 
-    def _remove_stopwords(self,words):
-        stop_words = stopwords.words('english') + config.filter_words[self.rumor] + config.event_terms[self.event]
+    def _remove_stopwords(self,words,bigram):
+        stop_words = config.filter_words[self.rumor] + config.event_terms[self.event]
+        if not bigram:
+            stop_words += stopwords.words('english')
         filtered_words = [re.sub("'","",w.lower()) for w in words if not re.sub("'","",w.lower()) in stop_words]
+        return filtered_words
+
+    def _remove_bigram_stopwords(self,bigrams):
+        filtered_words = []
+        for w in bigrams:
+            if (w[0] in stopwords.words('english')) and (w[1] in stopwords.words('english')):
+                pass
+            else:
+                filtered_words.append(w)
         return filtered_words
 
     def _stem_words(self,words):
@@ -27,10 +42,10 @@ class UncertaintyAnalysis(TweetProcessor):
             stemmed.append(PorterStemmer().stem(item))
         return stemmed
 
-    def process_tweet(self,tweet,stem=True,return_list=True):
+    def process_tweet(self,tweet,bigram,stem=True,return_list=True):
         text = self._scrub_tweet(text=tweet['text'])
         words = re.findall(r"[\w']+", text)
-        words = self._remove_stopwords(words)
+        words = self._remove_stopwords(words,bigram)
         if stem:
             words = self._stem_words(words)
         if return_list:
@@ -41,7 +56,12 @@ class UncertaintyAnalysis(TweetProcessor):
                 cleaned += word + ' '
             return cleaned
 
-    def top_uncertainty_words(self,output=True,sample_size=0):
+    def _find_bigrams(self,word_list):
+        bigram_measures = nltk.collocations.BigramAssocMeasures()
+        finder = BigramCollocationFinder.from_words(word_list)
+        finder.nbest(bigram_measures.likelihood_ratio, 10)
+
+    def top_uncertainty_words(self,stem,output=True,bigram=False,sample_size=0):
         temp_uncertainty_tweet_list = self.code_comparison.find({'second_final':'Uncertainty'})
         if sample_size > 0:
             sampled_tweets = [x for x in temp_uncertainty_tweet_list]
@@ -62,7 +82,11 @@ class UncertaintyAnalysis(TweetProcessor):
         print '[INFO] creating baseline counts'
         for tweet in baseline_tweet_list:
             try:
-                filtered_words = self.process_tweet(tweet=tweet,stem=False)
+                if bigram:
+                    s = self.process_tweet(tweet=tweet,bigram=True,stem=stem)
+                    filtered_words = self._remove_bigram_stopwords(zip(s, islice(s, 1, None)))
+                else:
+                    filtered_words = self.process_tweet(tweet=tweet,stem=stem,bigram=False)
                 baseline_top_words.update(filtered_words)
             except TypeError:
                 #print tweet['text']
@@ -71,7 +95,11 @@ class UncertaintyAnalysis(TweetProcessor):
         print '[INFO] creating uncertainty counts'
         for tweet in uncertainty_tweet_list:
             try:
-                filtered_words = self.process_tweet(tweet=tweet,stem=False)
+                if bigram:
+                    s = self.process_tweet(tweet=tweet,bigram=True,stem=stem)
+                    filtered_words = self._remove_bigram_stopwords(zip(s, islice(s, 1, None)))
+                else:
+                    filtered_words = self.process_tweet(tweet=tweet,stem=stem,bigram=False)
                 top_words.update(filtered_words)
             except TypeError:
                 print tweet['text']
@@ -85,52 +113,90 @@ class UncertaintyAnalysis(TweetProcessor):
             print '[INFO] sorting'
             ordered_result = [x for x in results]
             ordered_result.sort(key=lambda x: results[x],reverse=True)
-            for x in ordered_result[:25]:
-                print x,results[x]
+            for x in ordered_result[:50]:
+                if bigram:
+                    print x[0],x[1],results[x]
+                else:
+                    print x,results[x]
         return results
 
-    def uncertainty_tf_idf(self):
-        word_counts = Counter()
-        tf_idf_counts = Counter()
-        tweet_list = self.rumor_collection.find()
-        token_dict = {}
-        for tweet in tweet_list:
-            filtered_words = self.process_tweet(tweet=tweet)
-            token_dict[tweet['id']] = filtered_words
-        tfidf = TfidfVectorizer()
-        tfs = tfidf.fit_transform(token_dict.values())
-        print tfs
-        ut = [self.process_tweet(tweet=tweet) for tweet in self.rumor_collection.find({'codes.second_code':'Uncertainty'})]
-        response = tfidf.transform(ut)
-        feature_names = tfidf.get_feature_names()
-        for col in response.nonzero()[1]:
-            #print feature_names[col],response[0, col]
-            tf_idf_counts.update({feature_names[col]:response[0, col]})
-            word_counts.update([feature_names[col]])
-        results = {}
-        #for word in word_counts:
-        #    print word,tf_idf_counts[word],word_counts[word]
-        #print results
+    def _read_uncertianty_terms(self,path):
+        reader = fpath = os.path.join(os.path.dirname(__file__),os.pardir,'data/') + path
+        with open(fpath, 'rb') as codesheet:
+            reader = csv.reader(codesheet)
+            first_row = True
+            header = []
+            terms = []
+            for row in reader:
+                if first_row:
+                    header = row
+                    first_row = False
+                else:
+                    terms.append(row[0].decode('latin-1').encode('utf-8'))
+        return terms
 
-def compare_rumors(event_dict):
+    def search_uncertianty(self,term_list):
+        f = utils.write_to_samples(path='uncertainty_sample_tweets_stemmed.csv')
+        f.write('term,id,tweet text\n')
+        for term in term_list[:5]:
+            query = {'text':re.compile(term,re.IGNORECASE)}
+            tweets = self.db.find(query)
+            tweet_list = [x['text'] for x in tweets]
+            if len(tweet_list) < 100:
+                print 'threw out term: ' + term
+                print str(len(tweet_list)) + ' tweets'
+            else:
+                result = []
+                print 'TERM: ' + term
+                while len(result) <= 10:
+                    tweet = random.choice(tweet_list)
+                    text = self._scrub_tweet(tweet,scrub_url=True)
+                    if len(result) == 0:
+                        result.append(tweet)
+                    else:
+                        unique = True
+                        for y in result:
+                            if nltk.metrics.edit_distance(text,y) < 10:
+                                unique = False
+                        if unique:
+                            result.append(tweet)
+                for x in result:
+                    s = '"%s","%s"\n' % (term,x['text'])
+                    f.write(s.encode('utf-8'))
+
+    def find_rumors(self):
+        term_list = self._read_uncertianty_terms(path='all_rumor_uncertainty_stemmed.csv')
+        self.search_uncertianty(term_list=term_list)
+
+def compare_rumors(event_dict,bigram,stem):
     result_counter = Counter()
     for event in event_dict:
         print 'EVENT: %s' % event
         for rumor in event_dict[event]:
             print 'RUMOR: %s' % rumor
             u = UncertaintyAnalysis(event_name=event,rumor=rumor)
-            result_counter.update(u.top_uncertainty_words(output=False,
+            result_counter.update(u.top_uncertainty_words(bigram=bigram,
+                                                          stem=stem,
+                                                          output=False,
                                                           sample_size=500))
-    for x in result_counter.most_common(25):
-        print x[0],x[1]
+    f = utils.write_to_data(path='all_rumor_uncertainty.csv')
+    f.write('term,value\n')
+    for x in result_counter.most_common(50):
+        f.write('"%s",%f\n' % (x[0],x[1]))
 
-def top_uncertainty(event_dict):
+def top_uncertainty(event_dict,bigram,stem):
     for event in event_dict:
         print 'EVENT: %s' % event
         for rumor in event_dict[event]:
             print 'RUMOR: %s' % rumor
             u = UncertaintyAnalysis(event_name=event,rumor=rumor)
-            u.top_uncertainty_words()
+            u.top_uncertainty_words(bigram=bigram,stem=stem)
+
+def search(event_name,baseline_event_dict=None):
+    if baseline_event_dict:
+        compare_rumors(event_dict=baseline_event_dict,bigram=False,stem=True)
+    u = UncertaintyAnalysis(event_name=event_name)
+    u.find_rumors()
 
 def main():
     # the event identifier
@@ -141,14 +207,15 @@ def main():
         #'baltimore':['church_fire','purse']
     }
     # the rumor identifier
-    #u = UncertaintyAnalysis(event_name='sydneysiege',
-    #                        rumor=event_dict['sydneysiege'][0])
+    #u = UncertaintyAnalysis(event_name='sydneysiege',rumor=event_dict['sydneysiege'][0])
 
-    #u.top_uncertainty_words()
+    #u.top_uncertainty_words(stem=False,bigram=True)
     #u.uncertainty_tf_idf()
 
-    compare_rumors(event_dict=event_dict)
-    #top_uncertainty(event_dict=event_dict)
+    #compare_rumors(event_dict=event_dict,bigram=False,stem=True)
+    #top_uncertainty(event_dict=event_dict,bigram=True,stem=False)
+    #search(event_name='baltimore',baseline_event_dict=event_dict)
+    search(event_name='baltimore')
 
 if __name__ == "__main__":
     main()
