@@ -135,38 +135,67 @@ class UncertaintyAnalysis(TweetProcessor):
                     terms.append(row[0].decode('latin-1').encode('utf-8'))
         return terms
 
-    def search_uncertianty(self,term_list):
-        f = utils.write_to_samples(path='uncertainty_sample_tweets_stemmed.csv')
-        f.write('term,id,tweet text\n')
-        for term in term_list[:5]:
-            query = {'text':re.compile(term,re.IGNORECASE)}
-            tweets = self.db.find(query)
-            tweet_list = [x['text'] for x in tweets]
-            if len(tweet_list) < 100:
-                print 'threw out term: ' + term
-                print str(len(tweet_list)) + ' tweets'
-            else:
-                result = []
-                print 'TERM: ' + term
-                while len(result) <= 10:
-                    tweet = random.choice(tweet_list)
-                    text = self._scrub_tweet(tweet,scrub_url=True)
-                    if len(result) == 0:
-                        result.append(tweet)
-                    else:
-                        unique = True
-                        for y in result:
-                            if nltk.metrics.edit_distance(text,y) < 10:
-                                unique = False
-                        if unique:
+    def search_uncertianty(self,term_list,num=1):
+        for i in xrange(0,num):
+            fname = 'uncertainty_sample_tweets_%i.csv' % i
+            f = utils.write_to_samples(path=fname)
+            f.write('term,id,tweet text\n')
+            for term in term_list:
+                new_term = term
+                query = {'text':re.compile(new_term,re.IGNORECASE)}
+                tweets = self.db.find(query)
+                tweet_list = [x['text'] for x in tweets]
+                if len(tweet_list) < 100:
+                    print 'threw out term: ' + term
+                    print str(len(tweet_list)) + ' tweets'
+                else:
+                    result = []
+                    print 'TERM: ' + term
+                    while len(result) <= 10:
+                        tweet = random.choice(tweet_list)
+                        text = self._scrub_tweet(tweet,scrub_url=True)
+                        if len(result) == 0:
                             result.append(tweet)
-                for x in result:
-                    s = '"%s","%s"\n' % (term,x['text'])
-                    f.write(s.encode('utf-8'))
+                        else:
+                            unique = True
+                            for y in result:
+                                if nltk.metrics.edit_distance(text,y) < 10:
+                                    unique = False
+                            if unique:
+                                result.append(text)
+                    for x in result:
+                        s = '"%s","%s"\n' % (term,x)
+                        f.write(s.encode('utf-8'))
 
     def find_rumors(self):
-        term_list = self._read_uncertianty_terms(path='all_rumor_uncertainty_stemmed.csv')
-        self.search_uncertianty(term_list=term_list)
+        term_list = self._read_uncertianty_terms(path='all_rumor_uncertainty_filtered.csv')
+        self.search_uncertianty(term_list=term_list,num=10)
+
+    def find_random(self,num=1):
+        for i in xrange(0,num):
+            print i
+            fname = 'random_sample_tweets_%i.csv' % i
+            f = utils.write_to_samples(path=fname)
+            f.write('term,id,tweet text\n')
+            count = self.db.find().count()
+            rand = random.randrange(count)
+            tweet_list = self.db.find().skip(rand)
+            result = []
+            while len(result) <= 257:
+                tweet = tweet_list.next()['text']
+                text = self._scrub_tweet(tweet,scrub_url=True)
+                if len(result) == 0:
+                    result.append(tweet)
+                else:
+                    unique = True
+                    for y in result:
+                        if nltk.metrics.edit_distance(text,y) < 10:
+                            unique = False
+                    if unique:
+                        result.append(text)
+            for x in result:
+                s = '"%s"\n' % (x)
+                f.write(s.encode('utf-8'))
 
 def compare_rumors(event_dict,bigram,stem):
     result_counter = Counter()
@@ -194,7 +223,7 @@ def top_uncertainty(event_dict,bigram,stem):
 
 def search(event_name,baseline_event_dict=None):
     if baseline_event_dict:
-        compare_rumors(event_dict=baseline_event_dict,bigram=False,stem=True)
+        compare_rumors(event_dict=baseline_event_dict,bigram=False,stem=False)
     u = UncertaintyAnalysis(event_name=event_name)
     u.find_rumors()
 
@@ -215,7 +244,9 @@ def main():
     #compare_rumors(event_dict=event_dict,bigram=False,stem=True)
     #top_uncertainty(event_dict=event_dict,bigram=True,stem=False)
     #search(event_name='baltimore',baseline_event_dict=event_dict)
-    search(event_name='baltimore')
+    #search(event_name='baltimore')
+    u = UncertaintyAnalysis(event_name='baltimore')
+    u.find_random(num=10)
 
 if __name__ == "__main__":
     main()
