@@ -137,14 +137,14 @@ class UncertaintyAnalysis(TweetProcessor):
 
     def search_uncertianty(self,term_list,num=1):
         for i in xrange(0,num):
-            fname = 'uncertainty_sample_tweets_%i.csv' % i
+            fname = 'uncertainty_sample_tweets_no_stem_filtered_%i.csv' % i
             f = utils.write_to_samples(path=fname)
             f.write('term,id,tweet text\n')
             for term in term_list:
-                new_term = term
+                new_term = r'\b'+term+r'\b'
                 query = {'text':re.compile(new_term,re.IGNORECASE)}
                 tweets = self.db.find(query)
-                tweet_list = [x['text'] for x in tweets]
+                tweet_list = [x for x in tweets]
                 if len(tweet_list) < 100:
                     print 'threw out term: ' + term
                     print str(len(tweet_list)) + ' tweets'
@@ -153,22 +153,22 @@ class UncertaintyAnalysis(TweetProcessor):
                     print 'TERM: ' + term
                     while len(result) <= 10:
                         tweet = random.choice(tweet_list)
-                        text = self._scrub_tweet(tweet,scrub_url=True)
+                        text = self._scrub_tweet(tweet['text'],scrub_url=True)
                         if len(result) == 0:
                             result.append(tweet)
                         else:
                             unique = True
                             for y in result:
-                                if nltk.metrics.edit_distance(text,y) < 10:
+                                if nltk.metrics.edit_distance(text,y['text']) < 10:
                                     unique = False
                             if unique:
-                                result.append(text)
+                                result.append(tweet)
                     for x in result:
-                        s = '"%s","%s"\n' % (term,x)
+                        s = '"%s","%s","%s"\n' % (term,x['id'],x['text'])
                         f.write(s.encode('utf-8'))
 
     def find_rumors(self):
-        term_list = self._read_uncertianty_terms(path='all_rumor_uncertainty_filtered.csv')
+        term_list = self._read_uncertianty_terms(path='all_rumor_uncertainty_no_stem_filtered.csv')
         self.search_uncertianty(term_list=term_list,num=10)
 
     def find_random(self,num=1):
@@ -208,7 +208,7 @@ def compare_rumors(event_dict,bigram,stem):
                                                           stem=stem,
                                                           output=False,
                                                           sample_size=500))
-    f = utils.write_to_data(path='all_rumor_uncertainty.csv')
+    f = utils.write_to_data(path='10_rumor_uncertainty.csv')
     f.write('term,value\n')
     for x in result_counter.most_common(50):
         f.write('"%s",%f\n' % (x[0],x[1]))
@@ -231,9 +231,11 @@ def main():
     # the event identifier
     event_dict = {
         'sydneysiege':['hadley','flag','lakemba','flag','suicide','airspace'],
-        'mh17':['americans_onboard'],
+        'mh17':['americans_onboard','american_falseflag'],
         'WestJet_Hijacking':['hijacking'],
-        #'baltimore':['church_fire','purse']
+        'power_outage':['foul_play'],
+        'donetsk':['nuclear_detonation'],
+        'baltimore':['purse']
     }
     # the rumor identifier
     #u = UncertaintyAnalysis(event_name='sydneysiege',rumor=event_dict['sydneysiege'][0])
@@ -241,12 +243,12 @@ def main():
     #u.top_uncertainty_words(stem=False,bigram=True)
     #u.uncertainty_tf_idf()
 
-    #compare_rumors(event_dict=event_dict,bigram=False,stem=True)
+    compare_rumors(event_dict=event_dict,bigram=False,stem=True)
     #top_uncertainty(event_dict=event_dict,bigram=True,stem=False)
     #search(event_name='baltimore',baseline_event_dict=event_dict)
     #search(event_name='baltimore')
-    u = UncertaintyAnalysis(event_name='baltimore')
-    u.find_random(num=10)
+    #u = UncertaintyAnalysis(event_name='baltimore')
+    #u.find_random(num=4)
 
 if __name__ == "__main__":
     main()
