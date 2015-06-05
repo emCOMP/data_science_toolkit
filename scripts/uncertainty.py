@@ -61,22 +61,28 @@ class UncertaintyAnalysis(TweetProcessor):
         finder = BigramCollocationFinder.from_words(word_list)
         finder.nbest(bigram_measures.likelihood_ratio, 10)
 
+    def _count_all_words(self,tweet_list,bigram):
+        word_count = 0
+        for tweet in tweet_list:
+            word_count += len(self.process_tweet(tweet,bigram=bigram))
+        return word_count
+
     def top_uncertainty_words(self,stem,output=True,bigram=False,sample_size=0):
         temp_uncertainty_tweet_list = self.code_comparison.find({'second_final':'Uncertainty'})
         if sample_size > 0:
             sampled_tweets = [x for x in temp_uncertainty_tweet_list]
             try:
                 uncertainty_tweet_list = random.sample(sampled_tweets,sample_size)
-                uncertainty_total = len(uncertainty_tweet_list)
+                uncertainty_total = self._count_all_words(uncertainty_tweet_list,bigram)
             except ValueError:
-                uncertainty_total = len(sampled_tweets)
+                uncertainty_total = self._count_all_words(sampled_tweets,bigram)
                 uncertainty_tweet_list = sampled_tweets
         else:
             uncertainty_tweet_list = temp_uncertainty_tweet_list
-            uncertainty_total = uncertainty_tweet_list.count()
+            uncertainty_total = self._count_all_words(uncertainty_tweet_list,bigram)
         baseline_tweet_list = self.code_comparison.find({'$and':[{'first_final':{'$ne':'Unrelated'}},{'first_final':{'$ne':'Uncodable'}}]})
 
-        baseline_total = baseline_tweet_list.count()
+        baseline_total = self._count_all_words(baseline_tweet_list,bigram)
         top_words = Counter()
         baseline_top_words = Counter()
         print '[INFO] creating baseline counts'
