@@ -214,7 +214,7 @@ def compare_rumors(event_dict,bigram,stem):
                                                           stem=stem,
                                                           output=False,
                                                           sample_size=500))
-    f = utils.write_to_data(path='10_rumor_uncertainty.csv')
+    f = utils.write_to_data(path='rumor_uncertainty_6-5.csv')
     f.write('term,value\n')
     for x in result_counter.most_common(50):
         f.write('"%s",%f\n' % (x[0],x[1]))
@@ -246,10 +246,10 @@ def main():
     # the rumor identifier
     #u = UncertaintyAnalysis(event_name='sydneysiege',rumor=event_dict['sydneysiege'][0])
 
-    #u.top_uncertainty_words(stem=False,bigram=True)
+    #u.top_uncertainty_words(stem=False,bigram=False)
     #u.uncertainty_tf_idf()
 
-    compare_rumors(event_dict=event_dict,bigram=False,stem=True)
+    compare_rumors(event_dict=event_dict,bigram=False,stem=False)
     #top_uncertainty(event_dict=event_dict,bigram=True,stem=False)
     #search(event_name='baltimore',baseline_event_dict=event_dict)
     #search(event_name='baltimore')

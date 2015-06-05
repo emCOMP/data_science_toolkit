@@ -321,12 +321,16 @@ filter_words = {
     'airspace':['airspace','air','space','flights','no','fly','no-fly'],
     'americans_onboard':['passenger','board','23','americans','us','citizen'],
     'hijacking':['squawk','signal','button','plane','pilot','transponder','west','flight','jet','7500'],
-    #'church_fire':[]
+    #'church_fire':['fire','senior','church','harvin','riot','loot','protest','demonstrate','demonstrator','construction'],
+    'foul_play':['foul','terror','attack','hack'],
+    'nuclear_detonation':['donetsk','ukraine','nuke','nuclear','explosion'],
+    'purse':['purse','bag','red','head','redhead','woman','women','girl','lady','ladies','bitch']
 }
 
 event_terms = {
     'sydneysiege':['sydneysiege','martinplacesiege','haron','monis','haronmonis','illridewithyou','martinplace','sydney','chocolate shop','nswpolice','prime minister','tony abbott','witness','lindt','siege','hostage','hostages','martin place','terrorise','terrorize','terrorists','flag'],
     'mh17':['sa11','sa-11','ukraine','malaysia','airlines','mh17','kiev','mh017','torez','donetsk','airline','plane','buk'],
     'WestJet_Hijacking':[],
-    'baltimore':[]
+    'baltimore':[],
+    'donetsk':['explosion','ukraine','donetsk','nuclear','chemical plant','chemical factory','industrial explosives','shockwaves','nuke','detonated','detonation','mushroom cloud','bomb','DNR','blown up','Kazenniy','Debaltseve','rebels','troops'],
 }
