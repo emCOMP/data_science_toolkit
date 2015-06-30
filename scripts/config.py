@@ -1,6 +1,42 @@
 import re
 
 rumor_terms = {
+    ###Boston Rumors ##
+    'girl_running':{
+        '$and':[
+            {'text':re.compile('girl',re.IGNORECASE)},
+            {'text':re.compile('running',re.IGNORECASE)}
+        ]
+    },
+    'sunil':{
+        '$or':[
+            {'text':re.compile('sunil',re.IGNORECASE)},
+            {'text':re.compile('tripathi',re.IGNORECASE)}
+        ]
+    },
+    'navy_seals':{
+        '$or':[
+            {'text':re.compile('navy seal',re.IGNORECASE)},
+            {'text':re.compile('blackwater',re.IGNORECASE)},
+            {'text':re.compile('black ops',re.IGNORECASE)},
+            {'$and':[
+                {'text':re.compile('craft',re.IGNORECASE)},
+                {'text':re.compile('security',re.IGNORECASE)}
+            ]}
+        ]
+    },
+    'proposal':{
+        '$and':[
+            {'$or':[
+                {'text':re.compile('propos',re.IGNORECASE)},
+                {'text':re.compile('marry',re.IGNORECASE)}
+            ]},
+            {'$or':[
+                {'text':re.compile('girl',re.IGNORECASE)},
+                {'text':re.compile('woman',re.IGNORECASE)}
+            ]}
+        ]
+    },
     ### DC power outage Rumors ##
     'explosion':{
         '$or':[
