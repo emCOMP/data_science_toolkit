@@ -2,30 +2,33 @@ import re
 
 rumor_terms = {
     ###Boston Rumors ##
-    'girl_running':{
+    'girl_running_reu':{
         '$and':[
             {'text':re.compile('girl',re.IGNORECASE)},
             {'text':re.compile('running',re.IGNORECASE)}
         ]
     },
-    'sunil':{
+    'sunil_reu':{
         '$or':[
             {'text':re.compile('sunil',re.IGNORECASE)},
             {'text':re.compile('tripathi',re.IGNORECASE)}
         ]
     },
-    'navy_seals':{
-        '$or':[
-            {'text':re.compile('navy seal',re.IGNORECASE)},
-            {'text':re.compile('blackwater',re.IGNORECASE)},
-            {'text':re.compile('black ops',re.IGNORECASE)},
-            {'$and':[
-                {'text':re.compile('craft',re.IGNORECASE)},
-                {'text':re.compile('security',re.IGNORECASE)}
-            ]}
+    'navy_seals_reu':{
+        '$and':[
+            {'$or':[
+                {'text':re.compile('navy seal',re.IGNORECASE)},
+                {'text':re.compile('blackwater',re.IGNORECASE)},
+                {'text':re.compile('black ops',re.IGNORECASE)},
+                {'$and':[
+                    {'text':re.compile('craft',re.IGNORECASE)},
+                    {'text':re.compile('security',re.IGNORECASE)}
+                ]}
+            ]},
+            {"text":{'$not':re.compile('call of duty',re.IGNORECASE)}}
         ]
     },
-    'proposal':{
+    'proposal_reu':{
         '$and':[
             {'$or':[
                 {'text':re.compile('propos',re.IGNORECASE)},
