@@ -4,13 +4,14 @@ rumor_terms = {
     ###Navy Shooting Rumors##
     'chatanooga_isis':{
         '$and':[
-            {'text':re.compile('isis|terror',re.IGNORECASE)},
-            {'text':re.compile('predict|warn|fore|mention',re.IGNORECASE)}
+            {'text':re.compile('isis|islam',re.IGNORECASE)},
+            {'text':re.compile('predict|warn|fore|mention|time',re.IGNORECASE)},
+            {'text':re.compile('tweet|twitter',re.IGNORECASE)}
         ]
     },
     'tennessee_college':{
         '$and':[
-            {'text':re.compile('university|college|highway|recruit',re.IGNORECASE)},
+            {'text':re.compile('university|college',re.IGNORECASE)},
             {'text':re.compile('shoot',re.IGNORECASE)}
         ]
     },
