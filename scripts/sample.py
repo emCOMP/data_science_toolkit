@@ -1,5 +1,6 @@
 from collections import Counter
 import utils,random,re,nltk,os,csv,config
+import bson
 
 class TweetSampler(object):
 
@@ -82,10 +83,17 @@ class TweetSampler(object):
                 if nltk.metrics.edit_distance(text,y) < edit_distance:
                     unique = False
             if unique is True:
+                db_id = str(tweet['_id'])
                 result.append(text)
-                out = '"%s","%s","%s",\n' % (tweet['id'],
-                                             self.rumor,
-                                             tweet['text'].replace('"',''))
+                out_cols = [db_id, self.rumor, tweet['id'], tweet['text'].replace('"','')]
+                # Quote everything.
+                out_cols = ['"' + i + '"' for i in out_cols]
+                # Concatenate to a string with commas.
+                out = ','.join(out_cols) + '\n'
+                # out = '"%s","%s","%s",\n' % (db_id,
+                #                              self.rumor,
+                #                              tweet['id'],
+                #                              tweet['text'].replace('"',''))
                 f.write(out.encode('utf-8'))
                 count += 1
             if count >= num:
@@ -123,7 +131,7 @@ class TweetSampler(object):
         fname_in = raw_input('>> ')
         title = "%s.csv" % (fname_in)
         f = utils.write_to_samples(path=title)
-        f.write('"db_id","rumor","id","text"\n')
+        f.write('"id","rumor","tweet_id","text"\n')
         if edit_distance:
             print 'enter a sample size'
             num = int(raw_input('>> '))
@@ -249,9 +257,9 @@ class TweetSampler(object):
 
 def main():
     # the event identifier
-    event = 'sydneysiege'
+    event = 'reu_boston'
     # the rumor identifier
-    rumor = 'suicide'
+    rumor = 'navy_seals_reu'
 
     t = TweetSampler(event_name=event,rumor=rumor)
 
@@ -259,13 +267,13 @@ def main():
     #t.compress_tweets()
 
     # uncomment to create a random sample
-    #t.create_sample(edit_distance=True)
+    t.create_sample(edit_distance=True)
 
     # uncomment to create a full sample of uniques
     #t.create_sample(edit_distance=False)
 
     # uncomment to apply codes to non-uniques
-    t.expand_tweets()
+    #t.expand_tweets()
 
     # uncomment to randomly sample codes for large rumors
     #t.random_collection()
