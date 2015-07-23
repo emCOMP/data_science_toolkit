@@ -85,7 +85,8 @@ class TweetSampler(object):
             if unique is True:
                 db_id = str(tweet['_id'])
                 result.append(text)
-                out_cols = [db_id, self.rumor, tweet['id'], tweet['text'].replace('"','')]
+                txt = tweet['text'].replace('"','')
+                out_cols = [db_id, self.rumor, str(tweet['id']), txt]
                 # Quote everything.
                 out_cols = ['"' + i + '"' for i in out_cols]
                 # Concatenate to a string with commas.
@@ -117,7 +118,8 @@ class TweetSampler(object):
                 text = full_tweet['text']
                 result.append(text)
                 # Get the information to write out.
-                out_cols = [db_id, self.rumor, tweet['id'], tweet['text'].replace('"','')]
+                txt = tweet['text'].replace('"','')
+                out_cols = [db_id, self.rumor, str(tweet['id']), txt]
                 # Quote everything.
                 out_cols = ['"' + i + '"' for i in out_cols]
                 # Concatenate to a string with commas.
@@ -259,9 +261,9 @@ class TweetSampler(object):
 
 def main():
     # the event identifier
-    event = 'reu_boston'
+    event = 'navyshooting'
     # the rumor identifier
-    rumor = 'navy_seals_reu'
+    rumor = 'chatanooga_isis'
 
     t = TweetSampler(event_name=event,rumor=rumor)
 
