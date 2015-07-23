@@ -115,6 +115,7 @@ class TweetSampler(object):
         for tweet in tweet_list:
             full_tweet = self.rumor_collection.find_one({'id':tweet['id'][0]})
             if full_tweet is not None:
+                db_id = str(tweet['_id'])
                 text = full_tweet['text']
                 result.append(text)
                 # Get the information to write out.
@@ -263,15 +264,15 @@ def main():
     # the event identifier
     event = 'navyshooting'
     # the rumor identifier
-    rumor = 'chatanooga_isis'
+    rumor = 'tennessee_college'
 
     t = TweetSampler(event_name=event,rumor=rumor)
 
     # uncomment to find unqiues
-    #t.compress_tweets()
+    t.compress_tweets()
 
     # uncomment to create a random sample
-    t.create_sample(edit_distance=True)
+    #t.create_sample(edit_distance=True)
 
     # uncomment to create a full sample of uniques
     #t.create_sample(edit_distance=False)
