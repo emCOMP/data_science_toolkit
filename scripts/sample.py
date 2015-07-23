@@ -116,10 +116,12 @@ class TweetSampler(object):
             if full_tweet is not None:
                 text = full_tweet['text']
                 result.append(text)
-                out = '"%s","%s","%s","%s",\n' % (tweet['db_id'],
-                                                  self.rumor,
-                                                  tweet['id'][0],
-                                                  text.replace('"',''))
+                # Get the information to write out.
+                out_cols = [db_id, self.rumor, tweet['id'], tweet['text'].replace('"','')]
+                # Quote everything.
+                out_cols = ['"' + i + '"' for i in out_cols]
+                # Concatenate to a string with commas.
+                out = ','.join(out_cols) + '\n'
                 f.write(out.encode('utf-8'))
 
         return result
