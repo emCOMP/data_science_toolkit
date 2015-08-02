@@ -9,20 +9,20 @@ class TweetCleaner(object):
     Function:
             A class for cleaning tweet text.
     Parameters:
-                all_ops <bool>: If this is passed, the default settings will 
+                all_ops <bool>: If this is passed, the default settings will
                         be overridden with the value passed.
                         Ex. If True is passed all ops will be set to True.
 
-                        NOTE:   All ops is applied before user_settings, so
-                                it is possible to combine the two. 
-                        
-                        Ex:     Passing (all_ops=False, user_settings={'lowercase': True})
-                                will apply only the lowercase op. 
-
-                user_settings <{str: bool}>: 
+                user_settings <{str: bool}>:
                     Keys are cleaning operations, values are bools:
                     Ops which are 'True' will be applied to each tweet.
                     Ops which are 'False' willl not.
+
+                NOTE:   All ops is applied before user_settings, so
+                        it is possible to combine the two.
+
+                Ex:     Passing (all_ops=False, user_settings={'lowercase': True})
+                        will apply only the lowercase op.
     '''
 
     def __init__(self, all_ops=None, user_settings={}):
@@ -84,7 +84,7 @@ class TweetCleaner(object):
     Function:
             Applies all of the instance's enabled ops to the
             string passed in as 'text'.
-    
+
     Parameters:
             text<str>: The tweet text to be cleaned.
 

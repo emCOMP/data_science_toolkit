@@ -1,7 +1,9 @@
+import argparse
 import utils
+import config
+import nltk
 from TweetCleaner import TweetCleaner
 from TweetExporter import TweetExporter
-import argparse
 
 
 class TweetManager(object):
@@ -11,13 +13,8 @@ class TweetManager(object):
             event,
             rumor,
             export_path,
-            export_cols,
-            ):
-        self.actions = {
-            'compress': self.compress,
-            'load_training': self.load_training,
-            'load_full': self.load_full,
-        }
+            export_cols
+    ):
 
         # name of the event's db
         self.event = event
@@ -42,9 +39,13 @@ class TweetManager(object):
         }
         self.cleaner = TweetCleaner(
             all_ops=False, user_settings=cleaner_settings)
-
-        self.exporter = TweetExporter(export_path, export_cols)
-
+        # An exporter to handle tweet export.
+        self.exporter = TweetExporter(
+                            export_path,
+                            export_cols,
+                            {'rumor': rumor},
+                            ["db_id", "rumor", "tweet_id", "text"]
+                            )
 
     def __create_rumor_collection__(self):
 
@@ -60,7 +61,7 @@ class TweetManager(object):
             insert_list = []
 
             # Get all of the tweets matching the rumor query.
-            tweet_list = self._find_tweets()
+            tweet_list = self.__find_tweets__()
 
             # Insert the tweets into the collection in batches of 1000.
             for tweet in tweet_list:
@@ -78,7 +79,6 @@ class TweetManager(object):
 
         return rumor_collection
 
-
     # Helper method for finding rumor specific tweets from config.py
     def __find_tweets__(self):
         query = config.rumor_terms[self.rumor]
@@ -91,13 +91,14 @@ class TweetManager(object):
         if sample:
             tweet_list = self.rumor_collection.find({'sample': True})
         else:
-            tweet_list = self._find_tweets()
+            tweet_list = self.__find_tweets__()
         try:
             count = self.compression.find().sort(
                 'db_id', -1).limit(1).next()['db_id'] + 1
         except StopIteration:
             count = 0
 
+        print 'Compressing...'
         for tweet in tweet_list:
             # Clean the text.
             text = self.cleaner.clean(tweet['text'])
@@ -121,8 +122,15 @@ class TweetManager(object):
                     self.compression.ensure_index('text')
                 count += 1
 
-    # Creates a list of unique tweets
-    def compress(self):
+    '''
+    Function:
+        Creates a collection in the rumor_compression database
+        which maps duplicate tweets to a single representative.
+        (The representative is coded, then the codes are propagated
+         to the other related tweets.)
+    '''
+
+    def compress(self, args):
         # Check to make sure compression hasn't already been run
         check = self.compression.find_one()
         if check:
@@ -130,25 +138,26 @@ class TweetManager(object):
             print 'Please drop the collection manually if \
                     you need to compress again'
         else:
-            print 'Compressing tweets...'
             self.__compress__()
 
-    # # wrapper for creating samples
-    # # set edit_distance = true to create a list of different tweets
-    # def create_sample(self, start=0, scrub_url=True, edit_distance=False):
-    #     title = self.out_file
-    #     f = utils.write_to_samples(path=title)
+    '''
+    Function:
+        Generates a random sample of tweets for training.
+        Uses edit distance to ensure a diverse sample.
 
-    #     if edit_distance:
-    #         print 'enter a sample size'
-    #         num = self.training_size
-    #         self._create_sample_old(num=num, scrub_url=scrub_url, f=f)
-    #     else:
-    #         self._create_sample(num=0, f=f, start=start)
+    Parameters:
+        args.sample_size <int>: Number of tweets desired for the sample.
+        args.edit_distance <int>: The minimum edit_distance for a tweet
+                                    to be considered unique.
+    '''
 
-    def generate_training(self, sample_size):
+    def generate_training(self, args):
+        sample_size = args.sample_size
+        edit_distance = args.edit_distance
+
         # Get the whole set of tweets.
         tweet_list = self.__find_tweets__()
+        print 'Selecting '+str(sample_size)+' unique tweets...'
 
         # How many tweets we have selected so far.
         count = 0
@@ -190,29 +199,103 @@ class TweetManager(object):
             if count >= sample_size:
                 break
 
+    '''
+    Function:
+        Exports an entire rumor.
+    '''
 
-    def generate_full(self):
-        pass
+    def generate_full(self, args):
+
+        # Check to see if we have a compression database
+        compression_exists = bool(self.compression.find_one())
+
+        # If we don't have a compression database...
+        if not compression_exists:
+            # Compress before we generate the sheet.
+            self.__compress__()
+
+        # Get the full list of tweets.
+        tweet_list = self.compression.find({})
+        for tweet in tweet_list:
+            # Get the full tweet object from the rumor database.
+            # ('tweet' is an object from the compression database so it's
+            #   missing some text information)
+            full_tweet = self.rumor_collection.find_one({'id': tweet['id'][0]})
+
+            # If the tweet exists...
+            if full_tweet is not None:
+                tweet['text'] = full_tweet['text']
+                self.exporter.export_tweet(tweet)
+
+# !!!WIP!!!
+def validate_args(action, args):
+    # A list of required arguments for each action.
+    mappings = {
+                'compress': [],
+                'generate_training': ['sample_size'],
+                'generate_full': []
+                }
+    arg_vals = vars(args)
+
+    # Verify that a valid action was passed.
+    if action in mappings:
+        for req in mappings[action]:
+            # If any of the required args we not passed.
+            if req not in arg_vals.keys():
+                return False
+        return True
+    else:
+        raise ValueError('Invalid action specified: '+action)
 
 
 def main(args):
-    pass
+    tm = TweetManager(
+        args.db_name,
+        args.rumor_name,
+        args.export_path,
+        args.export_cols
+    )
+    try:
+        action = tm.__getattribute__(args.action)
+        action(args)
+
+    except ValueError:
+        print 'Invalid action specified: ', args.action
+        exit()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Manages tweet flow between the database,\
                     spreadsheets, and the coding tool.')
-    parser.add_argument(
-        'action', help='What to do with the tweets.', type=str)
-    parser.add_argument(
+
+    # General Args.
+    general = parser.add_argument_group('General')
+    general.add_argument(
+        'action', help='What to do with the tweets.',
+        choices=['compress', 'generate_training', 'generate_full'],
+        type=str)
+    general.add_argument(
         'db_name', help='The name of the database to use.', type=str)
-    parser.add_argument(
+    general.add_argument(
         'rumor_name', help='The name of the rumor to use.', type=str)
-    parser.add_argument(
+    general.add_argument(
         '-p', '--export_path', help='File path to use for export.',
         type=str, required=False, default='./samples/sample.csv')
-    parser.add_argument(
+    general.add_argument(
         '-c', '--export_cols', help='Which columns to export.',
-        type=str, required=False, default=["db_id", "tweet_id", "text"])
+        type=str, required=False,
+        nargs='*', default=["db_id", "tweet_id", "text"])
+
+    # Args for generate_training().
+    training = parser.add_argument_group('Generate Training')
+    training.add_argument(
+        '-ss', '--sample_size',
+        help='Number of tweets desired for the sample.',
+        type=int, required=False, default=80)
+    training.add_argument(
+        '-ed', '--edit_distance', help='The minimum edit_distance for a tweet\
+                                        to be considered unique.',
+        type=int, required=False, default=40)
+
     args = parser.parse_args()
     main(args)
