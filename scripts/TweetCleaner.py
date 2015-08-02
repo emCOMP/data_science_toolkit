@@ -5,11 +5,29 @@ from nltk.stem.snowball import EnglishStemmer
 
 class TweetCleaner(object):
 
-    def __init__(self, user_settings={}, all_ops=None):
+    '''
+    Function:
+            A class for cleaning tweet text.
+    Parameters:
+                all_ops <bool>: If this is passed, the default settings will 
+                        be overridden with the value passed.
+                        Ex. If True is passed all ops will be set to True.
+
+                        NOTE:   All ops is applied before user_settings, so
+                                it is possible to combine the two. 
+                        
+                        Ex:     Passing (all_ops=False, user_settings={'lowercase': True})
+                                will apply only the lowercase op. 
+
+                user_settings <{str: bool}>: 
+                    Keys are cleaning operations, values are bools:
+                    Ops which are 'True' will be applied to each tweet.
+                    Ops which are 'False' willl not.
+    '''
+
+    def __init__(self, all_ops=None, user_settings={}):
 
         # The default settings for the Cleaner.
-        #   Ops which are 'True' will be applied to each tweet.
-        #   Ops which are 'False' willl not.
         self.settings = {
             'scrub_non_ascii': True,
             'scrub_url': True,
@@ -41,10 +59,12 @@ class TweetCleaner(object):
         ]
 
         # User-specified settings.
-        if all_ops:
+        if all_ops == True:
             self.settings = {k: True for k in self.settings.keys()}
-        else:
-            self.settings.update(user_settings)
+        elif all_ops == False:
+            self.settings = {k: False for k in self.settings.keys()}
+
+        self.settings.update(user_settings)
 
         # Find the ops we will use.
         enabled_ops = [k for k, v in self.settings.iteritems() if v]
@@ -59,6 +79,20 @@ class TweetCleaner(object):
         # Run any op specific setup.
         self.__op_setup__()
 
+    
+    '''
+    Function:
+            Applies all of the instance's enabled ops to the
+            string passed in as 'text'.
+    
+    Parameters:
+            text<str>: The tweet text to be cleaned.
+
+    Returns:
+            <str>: The resulting string after all enabled ops
+                    are applied to 'text'.
+    '''
+
     def clean(self, text):
         # Handle null input.
         if text is None:
@@ -71,12 +105,17 @@ class TweetCleaner(object):
 
             return result
 
-    # Put any op-specific setup operations here.
-    #   Wrap them in an if statement like so:
-    #
-    #       if self.ops[<op_name>]:
-    #           <op-specific setup here>
+    '''
+    Function:
+        Provides any op-specific setup required for ops.
+        (Eg. importing new libraries, constructing other objects, etc.)
 
+        Put any op-specific setup operations here.
+            Wrap them in an if statement like so:
+
+                if self.settings[<op_name>]:
+                    <op-specific setup here>
+    '''
     def __op_setup__(self):
 
         if self.settings['stem_words']:
@@ -89,9 +128,11 @@ class TweetCleaner(object):
 #           Define Ops Here              #
 ##########################################
 
+    # Removes newline characters.
     def scrub_newlines(self, text):
-        return text.replace('\n','')
+        return text.replace('\n', '')
 
+    # Casts all characters to lowercase.
     def lowercase(self, text):
         return text.lower()
 
@@ -99,12 +140,14 @@ class TweetCleaner(object):
     def scrub_non_ascii(self, text):
         return re.sub(r'[^\x00-\x7F]+', u'', text)
 
+    # Removes URLs
     def scrub_url(self, text):
         result = re.sub(
             r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',
             u'', text)
         return result
 
+    # Removes all types of 'retweet text'.
     def scrub_retweet_text(self, text):
         s = ur'\u201c' + '@.*?:'
         result = text
@@ -116,18 +159,26 @@ class TweetCleaner(object):
         result = re.sub('@.*?\b', '', result).strip()
         return result
 
+    # Removes quotation marks.
     def scrub_quotes(self, text):
         return text.replace('"', '')
 
+    # Removes puncutation.
     def scrub_punctuation(self, text):
         return re.sub(r'[\.,-\/!$%\^&\*;:{}=\-_`~()]', '', text)
 
+    # Removes user-mentions.
+    # NOTE: This removes the entire mention, not just the @.
     def scrub_mentions(self, text):
         return re.sub(r'@\w+', u'', text)
 
+    # Removes hashtags.
     def scrub_hashtags(self, text):
         return re.sub(r'#\w+', '', text)
 
+    # Stems all words in the tweet.
+    # NOTE: Applies lowercase and scrub_punctuation
+    #       if they are not already applied.
     def stem_words(self, text):
         # Cast to lower case if we have not already.
         if not self.settings['lowercase']:
@@ -142,6 +193,9 @@ class TweetCleaner(object):
         text = ' '.join(stemmed)
         return text
 
+    # Removes stopwords (are, this, the, is, etc.)
+    # NOTE: Applies lowercase and scrub_punctuation
+    #       if they are not already applied.
     def remove_stopwords(self, text):
         # Cast to lower case if we have not already.
         if not self.settings['lowercase']:
