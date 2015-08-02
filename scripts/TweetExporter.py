@@ -21,7 +21,12 @@ class TweetExporter(object):
                                 the columns are written to the file.
     '''
 
-    def __init__(self, path, export_cols, aux_cols={}, order_override=None):
+    def __init__(
+        self,
+        path,
+        export_cols,
+        aux_cols={},
+        order_override=None):
         # The columns to include in exported CSVs.
         self.export_cols = export_cols
 
@@ -60,7 +65,7 @@ class TweetExporter(object):
         # Quote all of our headers.
         headers = self.output_order
         f = open(path, 'wb')
-        writer = csv.writer(f)
+        writer = csv.writer(f, quoting=csv.QUOTE_ALL)
         writer.writerow(headers)
         return writer
 
@@ -105,7 +110,10 @@ class TweetExporter(object):
         return self.cleaner.clean(tweet['text'])
 
     def tweet_id(self, tweet):
-        return str(tweet['id'])
+        if type(tweet['id']) == list:
+            return str(tweet['id'][0])
+        else:
+            return str(tweet['id'])
 
 
 #####################################
