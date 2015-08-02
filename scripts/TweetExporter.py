@@ -1,5 +1,5 @@
 import csv
-import TweetCleaner
+from TweetCleaner import TweetCleaner
 
 
 class TweetExporter(object):
@@ -42,7 +42,8 @@ class TweetExporter(object):
     def __init_output__(self, path):
         # Quote all of our headers.
         headers = self.export_cols + self.aux_headers
-        writer = csv.writer(path)
+        f = open(path, 'wb')
+        writer = csv.writer(f)
         writer.writerow(headers)
         return writer
 
@@ -87,7 +88,7 @@ def test(db, rumor):
     import utils
     mongo = utils.mongo_connect(db, rumor)
     test = mongo.find({}).limit(10)
-    e = TweetExporter('test.csv', ["id", "tweet_id", "text"])
+    e = TweetExporter('test.csv', ["db_id", "tweet_id", "text"])
     for t in test:
         e.export_tweet(t)
 
@@ -103,5 +104,5 @@ if __name__ == '__main__':
     parser.add_argument(
         'rumor_name', help='The name of the rumor to use.', type=str)
     args = parser.parse_args()
-    test(args['db_name'], args['rumor_name'])
+    test(args.db_name, args.rumor_name)
 
