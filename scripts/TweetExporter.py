@@ -20,13 +20,12 @@ class TweetExporter(object):
                                 which will specif the order in which
                                 the columns are written to the file.
     '''
-
     def __init__(
-        self,
-        path,
-        export_cols,
-        aux_cols={},
-        order_override=None):
+            self,
+            path,
+            export_cols,
+            aux_cols={},
+            order_override=None):
         # The columns to include in exported CSVs.
         self.export_cols = export_cols
 
@@ -74,7 +73,6 @@ class TweetExporter(object):
         Writes a tweet to the TweetExporter's output file.
 
     '''
-
     def export_tweet(self, tweet):
 
         line = []
