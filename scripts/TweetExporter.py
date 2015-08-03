@@ -113,10 +113,31 @@ class TweetExporter(object):
         else:
             return str(tweet['id'])
 
+    def first_level_codes(self, tweet):
+        if 'codes'in tweet.keys():
+            result = []
+            for container in tweet['codes']:
+                result.append(container['first'])
+            return ', '.join(sorted(result))
+        else:
+            return ''
+
+    def second_level_codes(self, tweet):
+        if 'codes'in tweet.keys():
+            ignore = ['coder_id', 'first']
+            result = []
+            for container in tweet['codes']:
+                for code in container:
+                        if code not in ignore:
+                            result.append(code)
+            return ', '.join(sorted(result))
+        else:
+            return ''
 
 #####################################
 #     Testing Stuff For Testing     #
 #####################################
+
 
 def test(db, rumor):
     import utils
