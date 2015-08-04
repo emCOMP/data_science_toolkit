@@ -1,6 +1,13 @@
 import re
 
 rumor_terms = {
+    ###Belgium##
+    'belgian_waffles':{
+        '$and':[
+            {'text':re.compile('waffle',re.IGNORECASE)},
+            {'text':re.compile('par|en|theses',re.IGNORECASE)},
+        ]
+    },
     ###Navy Shooting Rumors##
     'chatanooga_isis':{
         '$and':[
