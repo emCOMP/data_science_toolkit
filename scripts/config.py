@@ -39,7 +39,7 @@ rumor_terms = {
                     {'text':re.compile('security',re.IGNORECASE)}
                 ]}
             ]},
-            {"text":{'$not':re.compile('call of duty',re.IGNORECASE)}}
+            {"text":{'$not':re.compile('black ops 2',re.IGNORECASE)}}
         ]
     },
     'proposal_reu':{
@@ -52,6 +52,12 @@ rumor_terms = {
                 {'text':re.compile('girl',re.IGNORECASE)},
                 {'text':re.compile('woman',re.IGNORECASE)}
             ]}
+        ]
+    },
+    'test_reu':{
+        '$and':[
+            {'text':re.compile('explosion',re.IGNORECASE)},
+            {'text':re.compile('library',re.IGNORECASE)}
         ]
     },
     ### DC power outage Rumors ##
