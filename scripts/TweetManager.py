@@ -41,7 +41,7 @@ class TweetManager(object):
             self.__init_training__(args)
         elif args.action == 'generate_coding':
             self.__init_coding__(args)
-        elif args.action == 'adjudicate':
+        elif args.action == 'generate_adjudication':
             self.__init_adjudicate__(args)
 
     def __init_training__(self, args):
@@ -125,7 +125,7 @@ class TweetManager(object):
 
         # Ensure the skip_codes is a subset of the first_level codes.
         skip_codes = args.skip_second_code
-        if not set(skip_codes).issubset(set(self.first_level_codes)):
+        if not set(skip_codes).issubset(set(self.first_codes)):
             raise ValueError(
                 'skip_second_code is not a subset of first_level_codes'
             )
@@ -144,7 +144,7 @@ class TweetManager(object):
                                  for row in reader}
 
         # Check to make sure the assignment numbers add up.
-        total = sum(self.coders.values())
+        total = sum(self.adjudicators.values())
         if total > 1.:
             raise ValueError(
                 'Loads do not add up to 1. (adjudication loads are percentages)\
@@ -411,9 +411,10 @@ class TweetManager(object):
     '''
 
     def generate_coding(self, args):
+        print 'Gathering tweets...'
         # Get the full list of tweets.
         tweet_list = self.compression.find({})
-
+        print 'Allocating...'
         for tweet in tweet_list:
             # Get the full tweet object from the rumor database.
             # ('tweet' is an object from the compression database so it's
@@ -447,11 +448,12 @@ class TweetManager(object):
                 # Read the codes.
                 codes = {'coder_id': coder['coder_id']}
                 for col_name in row.keys():
-                    if col_name in self.first_level_codes:
-                        codes['first'] = col_name
-                        codes[col_name] = 1
-                    elif col_name in self.second_level_codes:
-                        codes[col_name] = 1
+                    if row[col_name]:
+                        if col_name in self.first_codes:
+                            codes['first'] = col_name
+                            codes[col_name] = 1
+                        elif col_name in self.second_codes:
+                            codes[col_name] = 1
 
                 # Handle tweets without a first code.
                 if 'first' not in codes:
@@ -464,7 +466,6 @@ class TweetManager(object):
                         {'db_id': db_id},
                         {
                             '$setOnInsert': {'text': text},
-                            # '$setOnInsert':{'codes':[]},
                             '$addToSet': {'codes': codes}
                         },
                         upsert=True
@@ -490,7 +491,7 @@ class TweetManager(object):
                     coder_name = raw_input('>> ')
 
                 coder = self.__get_db_coder__(coder_name=coder_name)
-                path = self.code_dir + filename
+                path = self.code_dir + '/' + filename
 
                 # Read the codesheet.
                 self.__upload_codesheet__(path, coder)
@@ -508,7 +509,7 @@ class TweetManager(object):
                     codes['first'], 0) + 1
 
                 # Count the votes for each second-level code.
-                for code in self.second_level_codes:
+                for code in self.second_codes:
                     code_counts[code] = code_counts.get(
                         code, 0) + codes.get(code, 0)
 
@@ -516,15 +517,15 @@ class TweetManager(object):
             # -------- First Level -------- #
             #                               #
             # Sort our list of first codes by the number of marks each one got.
-            self.first_level_codes.sort(
+            self.first_codes.sort(
                 key=lambda x: code_counts.get(x, 0),
                 reverse=True
             )
             # The most popular first-level code for this tweet.
-            popular_code = code_counts.get(self.first_level_codes[0], 0)
+            popular_code = code_counts.get(self.first_codes[0], 0)
 
             # If the most popular choice was chosen by a majority...
-            if float(popular_code) / self.num_coders > .5:
+            if float(popular_code) / self.coders_per_tweet > .5:
                 # Mark that code as the final first-level code.
                 first_final = self.first_codes[0]
             else:
@@ -538,18 +539,19 @@ class TweetManager(object):
             # the first-level code is one which
             # allows second-level codes
             # (ex. ignore second-level codes for 'unrelated' tweets.)
+            #
+            # The final second-level codes for this tweet.
+            second_final = []
             if first_final not in self.skip_second_code:
-                # The final second-level codes for this tweet.
-                second_final = []
                 # For each of the second level codes...
-                for code in self.second_level_codes:
+                for code in self.second_codes:
                     # If only one person marked a second level code...
                     if code_counts[code] == 1:
                         # Mark tweet for adjudication.
                         second_final = ['Adjudicate']
                         break
                     # If more than half marked this code...
-                    elif float(code_counts.get(code, 0)) / self.num_coders > .5:
+                    elif float(code_counts.get(code, 0)) / self.coders_per_tweet > .5:
                         # Add this code to the final codes for the tweet.
                         second_final.append(code)
 
@@ -573,14 +575,17 @@ class TweetManager(object):
             if i == 0:
                 query = {'first_final': 'Adjudicate'}
                 export_cols = args.export_cols + ['first_level_codes']
+                export_cols.remove('tweet_id')
                 suffix = '_level1.csv'
             else:
                 query = {'second_final': 'Adjudicate'}
-                export_cols = args.export_cols + ['second_level_codes']
+                export_cols = args.export_cols + ['first_level_codes', 'second_level_codes']
+                export_cols.remove('tweet_id')
                 suffix = '_level2.csv'
 
             tweets = self.code_comparison.find(query)
-            count = float(tweets.count())
+            num_tweets = self.code_comparison.find(query).count()
+            count = float(num_tweets)
 
             # The loads for each adjudicator for this level.
             loads = {k: int(count * v) + 1
@@ -604,7 +609,7 @@ class TweetManager(object):
                         'Ran out of adjudicators while delegating.'
                         )
                 # Choose a random adjudicator.
-                cur_adj = random.choice(loads)
+                cur_adj = random.choice(loads.keys())
                 # Write the tweet to thier sheet.
                 sheets[cur_adj].export_tweet(tweet)
                 # Decrement thier load.
@@ -615,7 +620,6 @@ class TweetManager(object):
                 if loads[cur_adj] <= 0:
                     del loads[cur_adj]
                     del sheets[cur_adj]
-
     '''
     Function:
         Imports codes into the database, performs auto-adjudication
@@ -715,7 +719,7 @@ if __name__ == '__main__':
     training = parser.add_argument_group('Generate Training')
     training.add_argument(
         '-p', '--export_path', help='File path to use for export.',
-        type=str, required=False, default='./samples/sample.csv')
+        type=str, required=False, default='../samples/sample.csv')
     training.add_argument(
         '-ss', '--sample_size',
         help='Number of tweets desired for the sample.',
