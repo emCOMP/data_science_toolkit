@@ -5,6 +5,7 @@ import os
 import nltk
 import utils
 import config
+import json
 from TweetCleaner import TweetCleaner
 from TweetExporter import TweetExporter
 
@@ -36,6 +37,15 @@ class TweetManager(object):
         self.cleaner = TweetCleaner(
             all_ops=False, user_settings=cleaner_settings)
 
+        self.use_tool = args.coding_tool
+
+        if self.use_tool:
+            self.tool_path = args.tool_path
+            with open(args.usernames, 'rb') as f:
+                self.tool_users = json.loads(f.read())
+
+        self.action = args.action
+
         # Run action-specific initialization.
         if args.action == 'generate_training':
             self.__init_training__(args)
@@ -43,18 +53,23 @@ class TweetManager(object):
             self.__init_coding__(args)
         elif args.action == 'generate_adjudication':
             self.__init_adjudicate__(args)
+        elif args.action == 'upload_adjudication':
+            self.__init_adjudicate__(args)
 
     def __init_training__(self, args):
+        # Modify the export columns.
+        export_cols = args.export_cols
+        export_cols.remove('db_id')
+
         # An exporter to handle tweet export.
         self.exporter = TweetExporter(
             args.export_path,
-            args.export_cols,
+            export_cols,
             args.aux_cols,
             args.col_order
         )
 
     def __init_coding__(self, args):
-
         # Check to see if we have a compression database
         compression_exists = bool(self.compression.find_one())
 
@@ -63,7 +78,7 @@ class TweetManager(object):
             # Compress before we generate the sheet.
             self.__compress__()
 
-        self.coders_per_tweet = args.coders
+        self.coders_per_tweet = args.coders_per
 
         # Read the Coder Assigments csv.
         with open(args.coder_assignments, 'rb') as f:
@@ -132,8 +147,8 @@ class TweetManager(object):
         else:
             self.skip_second_code = skip_codes
 
-        self.coders_per_tweet = args.coders
-        self.code_dir = args.codes_dir
+        self.coders_per_tweet = args.coders_per
+        self.sheet_dir = args.sheet_dir
         self.infer_coder_names = args.infer_coder_names
 
         # Read the Adjudicator Assigments csv.
@@ -363,6 +378,11 @@ class TweetManager(object):
             if count >= sample_size:
                 break
 
+        # If we're uploading to the coding tool...
+        if self.use_tool:
+            # Upload everything.
+            self.__upload_to_coding_tool__()
+
     '''
     Function:
         Helper for generate_coding:
@@ -407,6 +427,52 @@ class TweetManager(object):
 
     '''
     Function:
+        Uploads one csv sheet to the coding tool
+        using the TweetManager's rumor and the
+        provided csv_path and coder_name.
+
+    Parameters:
+        csv_path <str>: path to the csv file to be uploaded
+        coder_name <str>: name of the coder who will recieve the sheet
+    '''
+
+    def __upload_one__(self, csv_path, coder_name):
+        # Build up the command line call to the uploader.
+        command = self.tool_path + ' import_csv'
+        command += ' ' + ' '.join([csv_path, self.rumor, coder_name])
+        command += ' --codescheme misinfo-first'
+        command += ' --codescheme misinfo-second'
+        command += ' --codescheme misinfo-aux'
+
+        # Call the command.
+        os.system(command)
+
+    '''
+    Function:
+        Uploads all sheets to the coding tool.
+        (Adapts to the 'action' being performed by the TweetManager.)
+    '''
+    def __upload_to_coding_tool__(self):
+        # If we're outputting training...
+        if self.action == 'generate_training':
+            # Use all known users on coding tool and use the path to the
+            # training sheet as everyone's path.
+            outputs = {coder_name: self.exporter.get_path()
+                       for coder_name in self.tool_users.values()}
+
+        # If we're outputting coding...
+        elif self.action == 'generate_coding':
+            # Grab the names and paths from the sheets object.
+            # (sheets is created in __delegate__)
+            outputs = {self.tool_users[coder_name]: exporter.get_path()
+                       for coder_name, exporter in self.sheets.iteritems()}
+
+        # Upload each sheet to the tool.
+        for coder_name, path in outputs.iteritems():
+            self.__upload_one__(path, coder_name)
+
+    '''
+    Function:
         Exports an entire rumor to coding sheets.
     '''
 
@@ -426,75 +492,46 @@ class TweetManager(object):
                 tweet['text'] = full_tweet['text']
                 self.__delegate__(tweet)
 
-    '''
-    Function:
-        ___
-    Parameters:
-        path <str>: A filepath to the codesheet to be read.
-        coder <coder_object>: A coder object returned by __get_db_coder__()
-    '''
+        # If we're uploading to the coding tool...
+        if self.use_tool:
+            # Upload everything.
+            self.__upload_to_coding_tool__()
 
-    def __upload_codesheet__(self, path, coder):
-        # Read the code sheet.
-        with open(path, 'rb') as f:
-            codesheet = csv.DictReader(f)
 
-            # For each tweet on the sheet...
-            for row in codesheet:
-                # Read the tweet information.
-                db_id = row['db_id']
-                text = row['text'].decode('latin-1').encode('utf-8')
-
-                # Read the codes.
-                codes = {'coder_id': coder['coder_id']}
-                for col_name in row.keys():
-                    if row[col_name]:
-                        if col_name in self.first_codes:
-                            codes['first'] = col_name
-                            codes[col_name] = 1
-                        elif col_name in self.second_codes:
-                            codes[col_name] = 1
-
-                # Handle tweets without a first code.
-                if 'first' not in codes:
-                    codes['first'] = None
-
-                # If there is a db_id in the row...
-                if db_id:
-                    # Insert the codes into the database.
-                    self.code_comparison.update(
-                        {'db_id': db_id},
-                        {
-                            '$setOnInsert': {'text': text},
-                            '$addToSet': {'codes': codes}
-                        },
-                        upsert=True
-                    )
-
-    def __upload_codes__(self):
+    def __upload_all__(self):
         print 'Uploading codes from sheets...'
-        # Check if we've already imported these codes.
-        already_imported = bool(self.code_comparison.find_one())
-        if already_imported:
-            # Handle the conflict.
-            self.__handle_existing_codes__()
+
+        if self.action == 'generate_adjudication':
+            # Check if we've already imported these codes.
+            already_imported = bool(self.code_comparison.find_one())
+            if already_imported:
+                # Handle the conflict.
+                self.__handle_existing_codes__()
 
         # Read all of the files from the provided directory.
-        for filename in os.listdir(self.code_dir):
-                # If the file is a csv...
+        for filename in os.listdir(self.sheet_dir):
+            # If the file is a csv...
             if filename.endswith('.csv'):
-                    # Get the coder name
-                if self.infer_coder_names:
-                    coder_name = filename.strip('.csv')
+
+                # The filepath to this csv.
+                path = self.sheet_dir + '/' + filename
+
+                # If we're generating adjudication sheets...
+                if self.action == 'generate_adjudication':
+                    # Get the coder's name.
+                    if self.infer_coder_names:
+                        coder_name = filename.strip('.csv')
+                    else:
+                        print 'enter coder name (file: %s)' % filename
+                        coder_name = raw_input('>> ')
+
+                    # Retrive their database entry.
+                    coder = self.__get_db_coder__(coder_name=coder_name)
+                    # Read the codesheet passing in a coder.
+                    self.__handle_sheet__(path, coder)
                 else:
-                    print 'enter coder name (file: %s)' % filename
-                    coder_name = raw_input('>> ')
-
-                coder = self.__get_db_coder__(coder_name=coder_name)
-                path = self.code_dir + '/' + filename
-
-                # Read the codesheet.
-                self.__upload_codesheet__(path, coder)
+                    # Only pass the path.
+                    self.__handle_sheet__(path)
 
     def __auto_adjudicate__(self):
         print 'Auto-adjudicating...'
@@ -579,7 +616,8 @@ class TweetManager(object):
                 suffix = '_level1.csv'
             else:
                 query = {'second_final': 'Adjudicate'}
-                export_cols = args.export_cols + ['first_level_codes', 'second_level_codes']
+                export_cols = args.export_cols + \
+                    ['first_level_codes', 'second_level_codes']
                 export_cols.remove('tweet_id')
                 suffix = '_level2.csv'
 
@@ -607,7 +645,7 @@ class TweetManager(object):
                 if len(loads) == 0:
                     raise ValueError(
                         'Ran out of adjudicators while delegating.'
-                        )
+                    )
                 # Choose a random adjudicator.
                 cur_adj = random.choice(loads.keys())
                 # Write the tweet to thier sheet.
@@ -626,9 +664,123 @@ class TweetManager(object):
         and then outputs adjudication sheets.
     '''
     def generate_adjudication(self, args):
-        self.__upload_codes__()
+        self.__upload_all__()
         self.__auto_adjudicate__()
         self.__delegate_adjudication__(args)
+
+    def __upload_adjudication__(self, db_id, codes):
+        
+        # Create our update object.
+        # (Adding a field to mark that the tweet was
+        #  adjudicated.)
+        update = {'$set':{'adjudicated':True}}
+        
+        # If there is a first code to update...
+        if codes['first_level'] is not None:
+            update['$set'].update({'first_final': codes['first_level']})
+
+        # If there are second level codes to update...
+        if any(codes['second_level']):
+            # Remove the adjudicate code.
+            self.code_comparison.update(
+                {'db_id': db_id},
+                {'$pull':{'second_final':'Adjudicate'}},
+                upsert=True
+            )
+
+            # Add an operation to our update to add the new
+            # second level codes.
+            update['$addToSet'] = {
+                        'second_final': {'$each': codes['second_level']}
+                        }
+        # If the tweet was marked as having no second level code.
+        elif codes['no_second_code']:
+            # Remove the adjudicate code.
+            self.code_comparison.update(
+                {'db_id': db_id},
+                {'$pull':{'second_final':'Adjudicate'}},
+                upsert=True
+            )
+
+        # Insert the codes into the database.
+        self.code_comparison.update(
+            {'db_id': db_id},
+            update,
+            upsert=True
+        )
+
+
+    def __upload_codes__(self, db_id, text, codes, coder):
+        # Create the upload_codes object.
+        upload_codes = {
+                'coder_id': coder['coder_id'],
+                'first': codes['first_level'],
+                codes['first_level']: 1
+            }
+
+        # Format the second level codes:
+        second_level = {c: 1 for c in codes['second_level']}
+
+        # Add the second level codes into the dictionary.
+        upload_codes.update(second_level)
+
+        # Insert the codes into the database.
+        self.code_comparison.update(
+            {'db_id': db_id},
+            {
+                '$setOnInsert': {'text': text},
+                '$addToSet': {'codes': upload_codes}
+            },
+            upsert=True
+        )
+
+    '''
+    Function:
+        Handles reading in one csv sheet.
+        (Handles both coding-sheets and adjudication-sheets.)
+
+    Parameters:
+        path <str>: A filepath to the codesheet to be read.
+        coder <coder_object>: A coder object returned by __get_db_coder__()
+    '''
+    def __handle_sheet__(self, path, coder=None):
+        # Read the code sheet.
+        with open(path, 'rb') as f:
+            codesheet = csv.DictReader(f)
+
+            # For each tweet on the sheet...
+            for row in codesheet:
+                # Read the tweet information.
+                db_id = row['db_id']
+                text = row['text'].decode('latin-1').encode('utf-8')
+
+                # Read the codes.
+                codes = {'first_level': None, 'second_level': []}
+                for col_name in row.keys():
+                    # If the column contains a value...
+                    if row[col_name]:
+                        if col_name in self.first_codes:
+                            codes['first_level'] = col_name
+                        elif col_name in self.second_codes:
+                            codes['second_level'].append(col_name)
+                        elif col_name.lower() == 'no_second_code':
+                            codes['no_second_code'] = True
+                if db_id:
+                    # Handle the reading of the sheet depending on action.
+                    if self.action == 'generate_adjudication':
+                        self.__upload_codes__(db_id, text, codes, coder)
+
+                    elif self.action == 'upload_adjudication':
+                        self.__upload_adjudication__(db_id, codes)
+
+    '''
+    Function:
+        Uploads adjudicated tweets to the database.
+    '''
+    def upload_adjudication(self, args):
+        self.__upload_all__()
+
+
 
 
 # !!!WIP!!!
@@ -672,17 +824,22 @@ if __name__ == '__main__':
             'compress',
             'generate_training',
             'generate_coding',
-            'generate_adjudication'
+            'generate_adjudication',
+            'upload_adjudication'
         ],
         type=str)
     general.add_argument(
         'db_name', help='The name of the database to use.', type=str)
     general.add_argument(
         'rumor_name', help='The name of the rumor to use.', type=str)
+    general.add_argument(
+        '-ct', '--coding_tool',
+        help='Upload output to the coding tool automatically.',
+        type=bool, required=False, default=False)
 
     coding = parser.add_argument_group('Coding Related')
     coding.add_argument(
-        '-c', '--coders', help='The number of coders per tweet.\
+        '-c', '--coders_per', help='The number of coders per tweet.\
                                 (Not required for generate_sample)',
         type=int, required=False, default=3)
     coding.add_argument(
@@ -715,6 +872,19 @@ if __name__ == '__main__':
         type=str, required=False,
         nargs='*', default=None)
 
+    tool = parser.add_argument_group('Coding Tool')
+    tool.add_argument(
+        '-ctp', '--tool_path',
+        help='Path to the coding tool script.',
+        type=str, required=False,
+        default='/var/www/coding_experiment/manage.py')
+    tool.add_argument(
+        '-un', '--usernames',
+        help='Path to the json file containing username \
+                mappings for the coding tool.',
+        type=str, required=False,
+        default='coding_tool_ids.json')
+
     # Args for generate_training().
     training = parser.add_argument_group('Generate Training')
     training.add_argument(
@@ -743,8 +913,8 @@ if __name__ == '__main__':
     # Args for generate_adjudication().
     adjudicate = parser.add_argument_group('Adjudicate')
     adjudicate.add_argument(
-        '-cd', '--codes_dir', help='Path to input folder for \
-                                    completed coding sheets.',
+        '-sd', '--sheet_dir', help='Path to input folder for \
+                                    completed coding/adjudication sheets.',
         type=str, required=False, default='../codes')
     adjudicate.add_argument(
         '-aa', '--adjudicator_assignments',

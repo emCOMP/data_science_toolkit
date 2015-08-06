@@ -46,9 +46,10 @@ class TweetExporter(object):
             else:
                 raise ValueError('order_override does not match \
                                     export_cols and/or aux_cols')
-
+        # Store our path.
+        self.path = path
         # The csvwriter object to write the file.
-        self.writer = self.__init_output__(path)
+        self.writer = self.__init_output__(self.path)
 
         # A cleaner to clean the tweets for output purposes.
         cleaner_settings = {
@@ -81,8 +82,16 @@ class TweetExporter(object):
             if col in self.export_cols:
                 # Get the generator function
                 generator = self.__getattribute__(col)
-                # Call it on the provided tweet.
-                line.append(generator(tweet))
+
+                try:
+                    # Call it on the provided tweet.
+                    val = generator(tweet)
+                except KeyError:
+                    # If the tweet doesn't have the appropriate field.
+                    # We just return an error value.
+                    val = 'FEATURE_NOT_FOUND'
+
+                line.append(val)
 
             # Otherwise it must be an aux column...
             elif col in self.aux_headers:
@@ -93,6 +102,13 @@ class TweetExporter(object):
         # Write to the file.
         self.writer.writerow(line)
 
+    '''
+    Function:
+        Getter for the file-path this exporter is writing to.
+    '''
+    def get_path(self):
+        return self.path
+
 
 ##########################################
 #     Define Column Behaviours Here      #
@@ -102,7 +118,7 @@ class TweetExporter(object):
 #           in all of the methods below.
 
     def db_id(self, tweet):
-        return str(tweet['_id'])
+        return str(tweet['db_id'])
 
     def text(self, tweet):
         return self.cleaner.clean(tweet['text'])
@@ -124,7 +140,14 @@ class TweetExporter(object):
 
     def second_level_codes(self, tweet):
         if 'codes'in tweet.keys():
-            ignore = ['coder_id', 'first']
+            ignore = ['coder_id',
+                        'first',
+                        'Affirm',
+                        'Deny',
+                        'Neutral',
+                        'Unrelated',
+                        'Uncodable'
+                    ]
             result = []
             for container in tweet['codes']:
                 for code in container:
