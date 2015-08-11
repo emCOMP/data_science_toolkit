@@ -611,13 +611,13 @@ class TweetManager(object):
         for i in range(2):
             if i == 0:
                 query = {'first_final': 'Adjudicate'}
-                export_cols = args.export_cols + ['first_level_codes']
+                export_cols = args.export_cols + ['first_level_codes', 'second_level_codes']
                 export_cols.remove('tweet_id')
                 suffix = '_level1.csv'
             else:
                 query = {'second_final': 'Adjudicate'}
                 export_cols = args.export_cols + \
-                    ['first_level_codes', 'second_level_codes']
+                    ['final_codes', 'second_level_codes']
                 export_cols.remove('tweet_id')
                 suffix = '_level2.csv'
 

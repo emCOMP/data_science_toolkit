@@ -157,6 +157,20 @@ class TweetExporter(object):
         else:
             return ''
 
+    def final_codes(self, tweet):
+        result = []
+        if 'first_final' in tweet:
+            result.append(tweet['first_final'])
+
+        if 'second_final' in tweet:
+            second_final = tweet['second_final']
+            for code in second_final:
+                if code != 'Adjudicate':
+                    result.append(code)
+
+        return ', '.join(sorted(result))
+
+
 #####################################
 #     Testing Stuff For Testing     #
 #####################################
