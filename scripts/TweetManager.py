@@ -26,6 +26,10 @@ class TweetManager(object):
         self.compression = utils.mongo_connect(db_name='rumor_compression',
                                                collection_name=self.rumor)
 
+        # db containing metadata about the rumor
+        self.meta = utils.mongo_connect(db_name='rumor_metadata',
+                                               collection_name=self.rumor)
+
         # db collection for the individual rumor
         self.rumor_collection = self.__create_rumor_collection__()
 
@@ -113,6 +117,11 @@ class TweetManager(object):
                 self.sheets[coder_name] = exporter
 
     def __init_adjudicate__(self, args):
+        # What level of codes we're adjudicating
+        if not args.adjudication_level:
+            raise ValueError('No adjudication level provided!')
+        else:
+            self.adjudication_level = args.adjudication_level
 
         # Check to see if we have a compression database
         compression_exists = bool(self.compression.find_one())
@@ -164,6 +173,33 @@ class TweetManager(object):
             raise ValueError(
                 'Loads do not add up to 1. (adjudication loads are percentages)\
                 Check your math?'
+            )
+
+    def __update_rumor_status__(self, status, value=True):
+        # Check to see if there is an existing status document.
+        check = self.rumor_metadata.find({'metadata': 'status'})
+
+        # Initialize the record if we don't have one.
+        if check is None:
+            self.rumor_metadata.insert(
+                {'metadata': 'status',
+                 'collection_complete': True,
+                 'coverage_analyzed': False,
+                 'coding_assigned': False,
+                 'coding_uploaded': False,
+                 'adjudication1_assigned': False,
+                 'adjudication1_uploaded': False,
+                 'adjudication_both_assigned': False,
+                 'adjudication_both_uploaded': False,
+                 'adjudication2_assigned': False,
+                 'adjudication2_uploaded': False,
+                 'final_codes_propagated': False
+                })
+        # Update with the desired value.
+        self.rumor_metadata.update(
+                {'metadata': 'status'},
+                {status: value},
+                upsert=True
             )
 
     # Helper method for mapping coder names to coder ids
@@ -496,6 +532,7 @@ class TweetManager(object):
         if self.use_tool:
             # Upload everything.
             self.__upload_to_coding_tool__()
+        self.__update_rumor_status__('coding_assigned')
 
 
     def __upload_all__(self):
@@ -608,56 +645,71 @@ class TweetManager(object):
 
     def __delegate_adjudication__(self, args):
 
-        for i in range(2):
-            if i == 0:
-                query = {'first_final': 'Adjudicate'}
-                export_cols = args.export_cols + ['first_level_codes', 'second_level_codes']
-                export_cols.remove('tweet_id')
-                suffix = '_level1.csv'
-            else:
-                query = {'second_final': 'Adjudicate'}
-                export_cols = args.export_cols + \
-                    ['final_codes', 'second_level_codes']
-                export_cols.remove('tweet_id')
-                suffix = '_level2.csv'
+        if self.adjudication_level == 'first':
+            query = {'$and':[
+                            {'first_final': 'Adjudicate'},
+                            {'$not':{'second_final': 'Adjudicate'}}
+                        ]
+                    }
+            export_cols = args.export_cols + ['first_level_codes', 'second_level_codes']
+            export_cols.remove('tweet_id')
+            suffix = '_level1.csv'
+        elif self.adjudication_level == 'both':
+            query = {'first_final': 'Adjudicate','second_final': 'Adjudicate'}
+            export_cols = args.export_cols + \
+                ['first_level_codes', 'second_level_codes']
+            export_cols.remove('tweet_id')
+            suffix = '_both.csv'
+        elif self.adjudication_level == 'second':
+            query = {'$and':[
+                                {'second_final': 'Adjudicate'},
+                                {'$not':{'first_final': 'Adjudicate'}}
+                            ]
+                    }
+            export_cols = args.export_cols + \
+                ['final_codes', 'second_level_codes']
+            export_cols.remove('tweet_id')
+            suffix = '_level2.csv'
+        else:
+            raise ValueError('Unexpected adjudication_level value: '+str(self.adjudication_level))
 
-            tweets = self.code_comparison.find(query)
-            num_tweets = self.code_comparison.find(query).count()
-            count = float(num_tweets)
+        tweets = self.code_comparison.find(query)
+        num_tweets = self.code_comparison.find(query).count()
+        count = float(num_tweets)
 
-            # The loads for each adjudicator for this level.
-            loads = {k: int(count * v) + 1
-                     for k, v in self.adjudicators.iteritems()}
+        # The loads for each adjudicator for this level.
+        loads = {k: int(count * v) + 1
+                 for k, v in self.adjudicators.iteritems()}
 
-            # Make a dict of {adjudicator_name: exporter}
-            sheets = {}
-            for adj_name in self.adjudicators.keys():
-                # Create an exporter object for the coder.
-                exporter = TweetExporter(
-                    args.directory + '/' + adj_name + suffix,
-                    export_cols,
-                    args.aux_cols,
-                    args.col_order
+        # Make a dict of {adjudicator_name: exporter}
+        sheets = {}
+        for adj_name in self.adjudicators.keys():
+            # Create an exporter object for the coder.
+            exporter = TweetExporter(
+                args.directory + '/' + adj_name + suffix,
+                export_cols,
+                args.aux_cols,
+                args.col_order
+            )
+            sheets[adj_name] = exporter
+
+        for tweet in tweets:
+            if len(loads) == 0:
+                raise ValueError(
+                    'Ran out of adjudicators while delegating.'
                 )
-                sheets[adj_name] = exporter
+            # Choose a random adjudicator.
+            cur_adj = random.choice(loads.keys())
+            # Write the tweet to thier sheet.
+            sheets[cur_adj].export_tweet(tweet)
+            # Decrement thier load.
+            loads[cur_adj] -= 1
 
-            for tweet in tweets:
-                if len(loads) == 0:
-                    raise ValueError(
-                        'Ran out of adjudicators while delegating.'
-                    )
-                # Choose a random adjudicator.
-                cur_adj = random.choice(loads.keys())
-                # Write the tweet to thier sheet.
-                sheets[cur_adj].export_tweet(tweet)
-                # Decrement thier load.
-                loads[cur_adj] -= 1
-
-                # Stop assigning them tweets if
-                # they've reached capacity.
-                if loads[cur_adj] <= 0:
-                    del loads[cur_adj]
-                    del sheets[cur_adj]
+            # Stop assigning them tweets if
+            # they've reached capacity.
+            if loads[cur_adj] <= 0:
+                del loads[cur_adj]
+                del sheets[cur_adj]
     '''
     Function:
         Imports codes into the database, performs auto-adjudication
@@ -665,6 +717,7 @@ class TweetManager(object):
     '''
     def generate_adjudication(self, args):
         self.__upload_all__()
+        self.__update_rumor_status__('coding_uploaded')
         self.__auto_adjudicate__()
         self.__delegate_adjudication__(args)
 
@@ -912,6 +965,18 @@ if __name__ == '__main__':
 
     # Args for generate_adjudication().
     adjudicate = parser.add_argument_group('Adjudicate')
+    adjudicate.add_argument(
+        '-al', '--adjudication_level',
+        help='Which of the three adjudication cases to \
+                generate sheets for (first level only, \
+                both, or second level only)',
+        type=str, required=False,
+        nargs='*', choices=[
+            'first',
+            'both',
+            'second',
+            ]
+    )
     adjudicate.add_argument(
         '-sd', '--sheet_dir', help='Path to input folder for \
                                     completed coding/adjudication sheets.',
