@@ -122,6 +122,16 @@ class TweetManager(object):
             raise ValueError('No adjudication level provided!')
         else:
             self.adjudication_level = args.adjudication_level
+            
+            # This will be used to update the rumor_metadata
+            if self.adjudication_level == 'first':
+                self.adj_meta_prefix = 'adjudication1'
+            
+            elif self.adjudication_level == 'both':
+                self.adj_meta_prefix = 'adjudication_both'
+            
+            elif self.adjudication_level == 'second':
+                self.adj_meta_prefix = 'adjudication2'
 
         # Check to see if we have a compression database
         compression_exists = bool(self.compression.find_one())
@@ -720,6 +730,7 @@ class TweetManager(object):
         self.__update_rumor_status__('coding_uploaded')
         self.__auto_adjudicate__()
         self.__delegate_adjudication__(args)
+        self.__update_rumor_status__(self.adj_meta_prefix+'_assigned')
 
     def __upload_adjudication__(self, db_id, codes):
         
@@ -832,6 +843,7 @@ class TweetManager(object):
     '''
     def upload_adjudication(self, args):
         self.__upload_all__()
+        self.__update_rumor_status__(self.adj_meta_prefix+'_uploaded')
 
 
 
