@@ -42,6 +42,7 @@ class TweetManager(object):
             all_ops=False, user_settings=cleaner_settings)
 
         self.use_tool = args.coding_tool
+        self.status_log = self.__get_status_document__()
 
         if self.use_tool:
             self.tool_path = args.tool_path
@@ -185,18 +186,24 @@ class TweetManager(object):
                 Check your math?'
             )
 
-    def __update_rumor_status__(self, status, value=True):
+    # Returns the status document for this rumor from the rumor_metadata
+    # database. (Initializes it if there isn't one.)
+    def __get_status_document__(self):
         # Check to see if there is an existing status document.
         check = self.rumor_metadata.find({'metadata': 'status'})
-
+        
+        if check is not None:
+            return check[0]
+        
         # Initialize the record if we don't have one.
-        if check is None:
+        else:
             self.rumor_metadata.insert(
                 {'metadata': 'status',
                  'collection_complete': True,
                  'coverage_analyzed': False,
                  'coding_assigned': False,
                  'coding_uploaded': False,
+                 'auto_adjudicated': False,
                  'adjudication1_assigned': False,
                  'adjudication1_uploaded': False,
                  'adjudication_both_assigned': False,
@@ -205,12 +212,21 @@ class TweetManager(object):
                  'adjudication2_uploaded': False,
                  'final_codes_propagated': False
                 })
-        # Update with the desired value.
-        self.rumor_metadata.update(
-                {'metadata': 'status'},
-                {status: value},
-                upsert=True
-            )
+
+            return self.rumor_metadata.find({'metadata': 'status'})[0]
+
+
+    def __update_rumor_status__(self, status, value=True):
+        # Ensure the document exists.
+        if self.__get_status_document__():
+            # Update with the desired value.
+            self.rumor_metadata.update(
+                    {'metadata': 'status'},
+                    {status: value},
+                    upsert=True
+                )
+        else:
+            raise KeyError('No status document found for the rumor: '+self.rumor)
 
     # Helper method for mapping coder names to coder ids
     # if no name exists, create a new coder
@@ -243,10 +259,11 @@ class TweetManager(object):
             exit()
 
     '''
+    Function:
+        Handles the case where codes already exist in the code_comparison database.
     Returns:
         <bool>: Whether or not to continue running.
     '''
-
     def __handle_existing_codes__(self):
         print 'WARNING: Codes alreay present in database!'
         print 'Select an action:',
@@ -354,7 +371,6 @@ class TweetManager(object):
         (The representative is coded, then the codes are propagated
          to the other related tweets.)
     '''
-
     def compress(self, args):
         # Check to make sure compression hasn't already been run
         check = self.compression.find_one()
@@ -375,7 +391,6 @@ class TweetManager(object):
         args.edit_distance <int>: The minimum edit_distance for a tweet
                                     to be considered unique.
     '''
-
     def generate_training(self, args):
         sample_size = args.sample_size
         edit_distance = args.edit_distance
@@ -435,7 +450,6 @@ class TweetManager(object):
             Assigns a tweet to the appropriate number of coders
             for coding and writes it to their respective csv files.
     '''
-
     def __delegate__(self, tweet):
         # If we need to assign extra tweets (in order to ensure)
         # each tweet is covered by the desired number of coders.
@@ -481,7 +495,6 @@ class TweetManager(object):
         csv_path <str>: path to the csv file to be uploaded
         coder_name <str>: name of the coder who will recieve the sheet
     '''
-
     def __upload_one__(self, csv_path, coder_name):
         # Build up the command line call to the uploader.
         command = self.tool_path + ' import_csv'
@@ -521,7 +534,6 @@ class TweetManager(object):
     Function:
         Exports an entire rumor to coding sheets.
     '''
-
     def generate_coding(self, args):
         print 'Gathering tweets...'
         # Get the full list of tweets.
@@ -652,6 +664,8 @@ class TweetManager(object):
                  }
                  }
             )
+        # Record that the rumor has been auto-adjudicated.
+        self.__update_rumor_status__('auto_adjudicated')
 
     def __delegate_adjudication__(self, args):
 
@@ -728,7 +742,10 @@ class TweetManager(object):
     def generate_adjudication(self, args):
         self.__upload_all__()
         self.__update_rumor_status__('coding_uploaded')
-        self.__auto_adjudicate__()
+        
+        # Auto adjudicate the rumor if it hasn't been already.
+        if not self.status_log['auto_adjudicated']:
+            self.__auto_adjudicate__()
         self.__delegate_adjudication__(args)
         self.__update_rumor_status__(self.adj_meta_prefix+'_assigned')
 
