@@ -1,4 +1,5 @@
 import csv
+import datetime
 from TweetCleaner import TweetCleaner
 
 
@@ -72,12 +73,16 @@ class TweetExporter(object):
     '''
     Function:
         Writes a tweet to the TweetExporter's output file.
+    Parameters:
+        extra <dict>: Extra non-built-in features you want to add.
+                    THIS MUST BE THE SAME FOR EVERY CALL TO EXPORT TWEET
+                    Format: {header: value_for_this_tweet}
 
     '''
-    def export_tweet(self, tweet):
-
+    def export_tweet(self, tweet, extra={}):
+        out_order = self.output_order + extra.keys()
         line = []
-        for col in self.output_order:
+        for col in out_order:
             # If the column is a built-in...
             if col in self.export_cols:
                 # Get the generator function
@@ -98,6 +103,9 @@ class TweetExporter(object):
                 # Retrive the provided aux value.
                 header_index = self.aux_headers.index(col)
                 line.append(self.aux_vals[header_index])
+
+            elif col in extra:
+                line.append(extra[col])
 
         # Write to the file.
         self.writer.writerow(line)
@@ -169,6 +177,8 @@ class TweetExporter(object):
                     result.append(code)
 
         return ', '.join(sorted(result))
+
+    def time(self, tweet):
 
 
 #####################################
