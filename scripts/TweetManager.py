@@ -11,6 +11,51 @@ from TweetExporter import TweetExporter
 
 
 class TweetManager(object):
+    """
+    Manages the movement of tweets through the qualitative
+    coding pipeline.
+
+    Usage:
+        python TweetManager.py EVENT RUMOR ACTION --options ...
+
+    Example:
+        python TweetManager.py sydneysiege hadley generate_training -ss 80
+
+        This will generate a training sheet for the Hadley
+        rumor containing 80 tweets.
+
+
+    AVALIABLE ACTIONS:
+        (See individual function documentation for more
+         details on each action).
+
+        compress:
+            Locates all unique tweets by mapping duplicate
+            tweets and retweets to an original tweet, and
+            storing these mappings in a rumor_compression
+            database.
+
+        generate_training:
+            Generates a sample of tweets from the specified rumor
+            for training.
+
+        generate_coding:
+            Generates coding sheets for the specified rumor, assigning
+            tweets based on the loads specified in a coder_assignments
+            csv file.
+
+        generate_adjudication:
+            Generates adjudication sheets for the specified level of codes
+            (first-level codes only, both, or second-level codes only).
+
+        upload_adjudication:
+            Uploads adjudication sheets to the database.
+
+        propagate_codes:
+            Propagates codes from the code_comparison database to the
+            event database. (Applies codes from each unique tweet to
+            all duplicates of that tweet).
+    """
 
     def __init__(self, args):
         # name of the event's db
@@ -27,8 +72,8 @@ class TweetManager(object):
                                                collection_name=self.rumor)
 
         # db containing metadata about the rumor
-        self.meta = utils.mongo_connect(db_name='rumor_metadata',
-                                               collection_name=self.rumor)
+        self.rumor_metadata = utils.mongo_connect(db_name='rumor_metadata',
+                                                  collection_name=self.rumor)
 
         # db collection for the individual rumor
         self.rumor_collection = self.__create_rumor_collection__()
@@ -123,14 +168,14 @@ class TweetManager(object):
             raise ValueError('No adjudication level provided!')
         else:
             self.adjudication_level = args.adjudication_level
-            
+
             # This will be used to update the rumor_metadata
             if self.adjudication_level == 'first':
                 self.adj_meta_prefix = 'adjudication1'
-            
+
             elif self.adjudication_level == 'both':
                 self.adj_meta_prefix = 'adjudication_both'
-            
+
             elif self.adjudication_level == 'second':
                 self.adj_meta_prefix = 'adjudication2'
 
@@ -190,17 +235,18 @@ class TweetManager(object):
     # database. (Initializes it if there isn't one.)
     def __get_status_document__(self):
         # Check to see if there is an existing status document.
-        check = self.rumor_metadata.find({'metadata': 'status'})
-        
-        if check is not None:
+        check = list(self.rumor_metadata.find({'metadata': 'status'}))
+
+        if check:
             return check[0]
-        
+
         # Initialize the record if we don't have one.
         else:
+            print 'Creating metadata document...'
             self.rumor_metadata.insert(
                 {'metadata': 'status',
                  'collection_complete': True,
-                 'coverage_analyzed': False,
+                 'collection_coverage_analyzed': False,
                  'coding_assigned': False,
                  'coding_uploaded': False,
                  'auto_adjudicated': False,
@@ -211,10 +257,10 @@ class TweetManager(object):
                  'adjudication2_assigned': False,
                  'adjudication2_uploaded': False,
                  'final_codes_propagated': False
-                })
+                 }
+            )
 
-            return self.rumor_metadata.find({'metadata': 'status'})[0]
-
+            return list(self.rumor_metadata.find({'metadata': 'status'}))[0]
 
     def __update_rumor_status__(self, status, value=True):
         # Ensure the document exists.
@@ -226,7 +272,8 @@ class TweetManager(object):
                     upsert=True
                 )
         else:
-            raise KeyError('No status document found for the rumor: '+self.rumor)
+            raise KeyError(
+                'No status document found for the rumor: ' + self.rumor)
 
     # Helper method for mapping coder names to coder ids
     # if no name exists, create a new coder
@@ -258,13 +305,14 @@ class TweetManager(object):
             print 'Aborting...'
             exit()
 
-    '''
-    Function:
-        Handles the case where codes already exist in the code_comparison database.
-    Returns:
-        <bool>: Whether or not to continue running.
-    '''
     def __handle_existing_codes__(self):
+        """
+        Handles the case where codes already exist in the
+        code_comparison database.
+
+        Returns:
+            (bool) Whether or not to continue running.
+        """
         print 'WARNING: Codes alreay present in database!'
         print 'Select an action:',
         print 'Overwrite Existing Codes (!w)'
@@ -364,14 +412,13 @@ class TweetManager(object):
                     self.compression.ensure_index('text')
                 count += 1
 
-    '''
-    Function:
+    def compress(self, args):
+        """
         Creates a collection in the rumor_compression database
         which maps duplicate tweets to a single representative.
         (The representative is coded, then the codes are propagated
          to the other related tweets.)
-    '''
-    def compress(self, args):
+        """
         # Check to make sure compression hasn't already been run
         check = self.compression.find_one()
         if check:
@@ -381,17 +428,16 @@ class TweetManager(object):
         else:
             self.__compress__()
 
-    '''
-    Function:
+    def generate_training(self, args):
+        """
         Generates a random sample of tweets for training.
         Uses edit distance to ensure a diverse sample.
 
-    Parameters:
-        args.sample_size <int>: Number of tweets desired for the sample.
-        args.edit_distance <int>: The minimum edit_distance for a tweet
-                                    to be considered unique.
-    '''
-    def generate_training(self, args):
+        Args:
+            args.sample_size (int): Number of tweets desired for the sample.
+            args.edit_distance (int): The minimum edit_distance for a tweet
+                                        to be considered unique.
+        """
         sample_size = args.sample_size
         edit_distance = args.edit_distance
 
@@ -444,13 +490,12 @@ class TweetManager(object):
             # Upload everything.
             self.__upload_to_coding_tool__()
 
-    '''
-    Function:
-        Helper for generate_coding:
-            Assigns a tweet to the appropriate number of coders
-            for coding and writes it to their respective csv files.
-    '''
     def __delegate__(self, tweet):
+        """
+        Helper for generate_coding:
+        Assigns a tweet to the appropriate number of coders
+        for coding and writes it to their respective csv files.
+        """
         # If we need to assign extra tweets (in order to ensure)
         # each tweet is covered by the desired number of coders.
         if len(self.coders.keys()) < self.coders_per_tweet:
@@ -485,17 +530,16 @@ class TweetManager(object):
                 # Add them to backup in case we go over.
                 self.backup_coders.append(cur_coder)
 
-    '''
-    Function:
-        Uploads one csv sheet to the coding tool
-        using the TweetManager's rumor and the
-        provided csv_path and coder_name.
-
-    Parameters:
-        csv_path <str>: path to the csv file to be uploaded
-        coder_name <str>: name of the coder who will recieve the sheet
-    '''
     def __upload_one__(self, csv_path, coder_name):
+        """
+            Uploads one csv sheet to the coding tool
+            using the TweetManager's rumor and the
+            provided csv_path and coder_name.
+
+            Args:
+                csv_path (str): path to the csv file to be uploaded
+                coder_name (str): name of the coder who will recieve the sheet
+        """
         # Build up the command line call to the uploader.
         command = self.tool_path + ' import_csv'
         command += ' ' + ' '.join([csv_path, self.rumor, coder_name])
@@ -506,12 +550,11 @@ class TweetManager(object):
         # Call the command.
         os.system(command)
 
-    '''
-    Function:
+    def __upload_to_coding_tool__(self):
+        """
         Uploads all sheets to the coding tool.
         (Adapts to the 'action' being performed by the TweetManager.)
-    '''
-    def __upload_to_coding_tool__(self):
+        """
         # If we're outputting training...
         if self.action == 'generate_training':
             # Use all known users on coding tool and use the path to the
@@ -530,11 +573,11 @@ class TweetManager(object):
         for coder_name, path in outputs.iteritems():
             self.__upload_one__(path, coder_name)
 
-    '''
-    Function:
-        Exports an entire rumor to coding sheets.
-    '''
     def generate_coding(self, args):
+        """
+        Exports an entire rumor to coding sheets.
+        """
+
         print 'Gathering tweets...'
         # Get the full list of tweets.
         tweet_list = self.compression.find({})
@@ -555,7 +598,6 @@ class TweetManager(object):
             # Upload everything.
             self.__upload_to_coding_tool__()
         self.__update_rumor_status__('coding_assigned')
-
 
     def __upload_all__(self):
         print 'Uploading codes from sheets...'
@@ -670,32 +712,34 @@ class TweetManager(object):
     def __delegate_adjudication__(self, args):
 
         if self.adjudication_level == 'first':
-            query = {'$and':[
+            query = {'$and': [
                             {'first_final': 'Adjudicate'},
-                            {'$not':{'second_final': 'Adjudicate'}}
-                        ]
-                    }
-            export_cols = args.export_cols + ['first_level_codes', 'second_level_codes']
+                            {'$not': {'second_final': 'Adjudicate'}}
+                        ]}
+            export_cols = args.export_cols + \
+                ['first_level_codes', 'second_level_codes']
             export_cols.remove('tweet_id')
             suffix = '_level1.csv'
         elif self.adjudication_level == 'both':
-            query = {'first_final': 'Adjudicate','second_final': 'Adjudicate'}
+            query = {'first_final': 'Adjudicate',
+                     'second_final': 'Adjudicate'}
             export_cols = args.export_cols + \
                 ['first_level_codes', 'second_level_codes']
             export_cols.remove('tweet_id')
             suffix = '_both.csv'
         elif self.adjudication_level == 'second':
-            query = {'$and':[
+            query = {'$and': [
                                 {'second_final': 'Adjudicate'},
-                                {'$not':{'first_final': 'Adjudicate'}}
-                            ]
-                    }
+                                {'$not': {'first_final': 'Adjudicate'}}
+                            ]}
             export_cols = args.export_cols + \
                 ['final_codes', 'second_level_codes']
             export_cols.remove('tweet_id')
             suffix = '_level2.csv'
         else:
-            raise ValueError('Unexpected adjudication_level value: '+str(self.adjudication_level))
+            raise ValueError(
+                'Unexpected adjudication_level value: ' +
+                str(self.adjudication_level))
 
         tweets = self.code_comparison.find(query)
         num_tweets = self.code_comparison.find(query).count()
@@ -734,15 +778,16 @@ class TweetManager(object):
             if loads[cur_adj] <= 0:
                 del loads[cur_adj]
                 del sheets[cur_adj]
-    '''
-    Function:
+
+    def generate_adjudication(self, args):
+        """
         Imports codes into the database, performs auto-adjudication
         and then outputs adjudication sheets.
-    '''
-    def generate_adjudication(self, args):
+        """
+
         self.__upload_all__()
         self.__update_rumor_status__('coding_uploaded')
-        
+
         # Auto adjudicate the rumor if it hasn't been already.
         if not self.status_log['auto_adjudicated']:
             self.__auto_adjudicate__()
@@ -750,12 +795,12 @@ class TweetManager(object):
         self.__update_rumor_status__(self.adj_meta_prefix+'_assigned')
 
     def __upload_adjudication__(self, db_id, codes):
-        
+
         # Create our update object.
         # (Adding a field to mark that the tweet was
         #  adjudicated.)
-        update = {'$set':{'adjudicated':True}}
-        
+        update = {'$set': {'adjudicated': True}}
+
         # If there is a first code to update...
         if codes['first_level'] is not None:
             update['$set'].update({'first_final': codes['first_level']})
@@ -765,7 +810,7 @@ class TweetManager(object):
             # Remove the adjudicate code.
             self.code_comparison.update(
                 {'db_id': db_id},
-                {'$pull':{'second_final':'Adjudicate'}},
+                {'$pull': {'second_final': 'Adjudicate'}},
                 upsert=True
             )
 
@@ -779,7 +824,7 @@ class TweetManager(object):
             # Remove the adjudicate code.
             self.code_comparison.update(
                 {'db_id': db_id},
-                {'$pull':{'second_final':'Adjudicate'}},
+                {'$pull': {'second_final': 'Adjudicate'}},
                 upsert=True
             )
 
@@ -789,7 +834,6 @@ class TweetManager(object):
             update,
             upsert=True
         )
-
 
     def __upload_codes__(self, db_id, text, codes, coder):
         # Create the upload_codes object.
@@ -815,16 +859,15 @@ class TweetManager(object):
             upsert=True
         )
 
-    '''
-    Function:
+    def __handle_sheet__(self, path, coder=None):
+        """
         Handles reading in one csv sheet.
         (Handles both coding-sheets and adjudication-sheets.)
 
-    Parameters:
-        path <str>: A filepath to the codesheet to be read.
-        coder <coder_object>: A coder object returned by __get_db_coder__()
-    '''
-    def __handle_sheet__(self, path, coder=None):
+        Args:
+            path (str): A filepath to the codesheet to be read.
+            coder (coder_object): A coder object returned by __get_db_coder__()
+        """
         # Read the code sheet.
         with open(path, 'rb') as f:
             codesheet = csv.DictReader(f)
@@ -854,11 +897,19 @@ class TweetManager(object):
                     elif self.action == 'upload_adjudication':
                         self.__upload_adjudication__(db_id, codes)
 
-    '''
-    Function:
-        Uploads adjudicated tweets to the database.
-    '''
+    def propagate_codes(self, args):
+        coded_uniques = self.code_comparison.find({'$or': [
+                                                    {'first_final': {'$not': 'Adjudicate'}},
+                                                    {'second_final': {'$not': 'Adjudicate'}}
+                                                    ]}
+                                                 )
+
     def upload_adjudication(self, args):
+        """
+        FUNCTION:
+            Uploads adjudicated tweets to the database.
+        """
+
         self.__upload_all__()
         self.__update_rumor_status__(self.adj_meta_prefix+'_uploaded')
 
@@ -907,7 +958,8 @@ if __name__ == '__main__':
             'generate_training',
             'generate_coding',
             'generate_adjudication',
-            'upload_adjudication'
+            'upload_adjudication',
+            'propagate_codes'
         ],
         type=str)
     general.add_argument(

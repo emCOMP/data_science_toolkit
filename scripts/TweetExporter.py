@@ -5,22 +5,31 @@ from TweetCleaner import TweetCleaner
 
 class TweetExporter(object):
 
-    '''
-    Parameters:
-        path<str>: The destination file-path to write output.
-        export_cols<[str]>: The columns to include in output.
+    """
+    Handles the writing of tweets to csv rows on a tweet-by-tweet
+    basis.
 
-        aux_cols<{str: str}>: Keys are extra column names, values are
-                                the value to write in that column.
+    Usage:
+        1. Create a TweetExporter instance, initializing it with your
+            desired path and export settings.
+        2. For each tweet you want to export: call the instance's
+            export_tweet() method, passing the tweet object as
+            the argument.
 
-                                Ex. {'rumor': 'sunil'} will include
+    Args:
+        path (str): The destination file-path to write output.
+        export_cols ([str]): The columns to include in output.
+        aux_cols ({str: str}): Keys are extra column names, values are
+                                    the value to write in that column.
+
+                                    Ex. {'rumor': 'sunil'} will include
                                     an extra column called 'rumor'
                                     with a value of 'sunil'.
-
-        order_override<[str]>: An ordered list of the export columns
+        order_override ([str]): An ordered list of the export columns
                                 which will specif the order in which
                                 the columns are written to the file.
-    '''
+    """
+
     def __init__(
             self,
             path,
@@ -70,16 +79,15 @@ class TweetExporter(object):
         writer.writerow(headers)
         return writer
 
-    '''
-    Function:
-        Writes a tweet to the TweetExporter's output file.
-    Parameters:
-        extra <dict>: Extra non-built-in features you want to add.
-                    THIS MUST BE THE SAME FOR EVERY CALL TO EXPORT TWEET
-                    Format: {header: value_for_this_tweet}
-
-    '''
     def export_tweet(self, tweet, extra={}):
+        """
+        Writes a tweet to the TweetExporter's output file.
+
+        Args:
+            extra <dict>: Extra non-built-in columns you want to add.
+                        THIS MUST BE THE SAME FOR EVERY CALL TO EXPORT TWEET
+                        Format: {header: value_for_this_tweet}
+        """
         out_order = self.output_order + extra.keys()
         line = []
         for col in out_order:
@@ -110,11 +118,11 @@ class TweetExporter(object):
         # Write to the file.
         self.writer.writerow(line)
 
-    '''
-    Function:
-        Getter for the file-path this exporter is writing to.
-    '''
     def get_path(self):
+        """
+        Returns:
+            (str): The file-path this exporter is writing to.
+        """
         return self.path
 
 
@@ -149,18 +157,18 @@ class TweetExporter(object):
     def second_level_codes(self, tweet):
         if 'codes'in tweet.keys():
             ignore = ['coder_id',
-                        'first',
-                        'Affirm',
-                        'Deny',
-                        'Neutral',
-                        'Unrelated',
-                        'Uncodable'
-                    ]
+                      'first',
+                      'Affirm',
+                      'Deny',
+                      'Neutral',
+                      'Unrelated',
+                      'Uncodable'
+                      ]
             result = []
             for container in tweet['codes']:
                 for code in container:
-                        if code not in ignore:
-                            result.append(code)
+                    if code not in ignore:
+                        result.append(code)
             return ', '.join(sorted(result))
         else:
             return ''
@@ -179,7 +187,7 @@ class TweetExporter(object):
         return ', '.join(sorted(result))
 
     def time(self, tweet):
-
+        pass
 
 #####################################
 #     Testing Stuff For Testing     #
