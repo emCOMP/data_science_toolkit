@@ -1,0 +1,20 @@
+dstk package
+============
+
+Subpackages
+-----------
+
+.. toctree::
+
+    dstk.analysis
+    dstk.database
+    dstk.management
+    dstk.processing
+
+Module contents
+---------------
+
+.. automodule:: dstk
+    :members:
+    :undoc-members:
+    :show-inheritance:

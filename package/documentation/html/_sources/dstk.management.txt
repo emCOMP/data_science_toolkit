@@ -1,0 +1,22 @@
+dstk.management package
+=======================
+
+Submodules
+----------
+
+dstk.management.TweetManager module
+-----------------------------------
+
+.. automodule:: dstk.management.TweetManager
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: dstk.management
+    :members:
+    :undoc-members:
+    :show-inheritance:

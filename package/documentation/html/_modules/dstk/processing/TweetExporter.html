@@ -1,0 +1,308 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>dstk.processing.TweetExporter &mdash; Data Science Toolkit 2.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '2.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="Data Science Toolkit 2.0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for dstk.processing.TweetExporter</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">csv</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">from</span> <span class="nn">TweetCleaner</span> <span class="kn">import</span> <span class="n">TweetCleaner</span>
+
+
+<div class="viewcode-block" id="TweetExporter"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetExporter.TweetExporter">[docs]</a><span class="k">class</span> <span class="nc">TweetExporter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Handles the writing of tweets to csv rows on a tweet-by-tweet</span>
+<span class="sd">    basis.</span>
+
+<span class="sd">    Usage:</span>
+<span class="sd">        1. Create a TweetExporter instance, initializing it with your</span>
+<span class="sd">            desired path and export settings.</span>
+<span class="sd">        2. For each tweet you want to export: call the instance&#39;s</span>
+<span class="sd">            export_tweet() method, passing the tweet object as</span>
+<span class="sd">            the argument.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        path (str): The destination file-path to write output.</span>
+<span class="sd">        export_cols ([str]): The columns to include in output.</span>
+<span class="sd">        aux_cols ({str: str}): Keys are extra column names, values are</span>
+<span class="sd">                                    the value to write in that column.</span>
+
+<span class="sd">                                    Ex. {&#39;rumor&#39;: &#39;sunil&#39;} will include</span>
+<span class="sd">                                    an extra column called &#39;rumor&#39;</span>
+<span class="sd">                                    with a value of &#39;sunil&#39;.</span>
+<span class="sd">        order_override ([str]): An ordered list of the export columns</span>
+<span class="sd">                                which will specif the order in which</span>
+<span class="sd">                                the columns are written to the file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">path</span><span class="p">,</span>
+            <span class="n">export_cols</span><span class="p">,</span>
+            <span class="n">aux_cols</span><span class="o">=</span><span class="p">{},</span>
+            <span class="n">order_override</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="c"># The columns to include in exported CSVs.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">export_cols</span> <span class="o">=</span> <span class="n">export_cols</span>
+
+        <span class="c"># Auxilliary Columns</span>
+        <span class="c"># We split them up into two lists because we need to preserve order.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aux_headers</span> <span class="o">=</span> <span class="n">aux_cols</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aux_vals</span> <span class="o">=</span> <span class="p">[</span><span class="n">aux_cols</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">aux_headers</span><span class="p">]</span>
+
+        <span class="c"># The order in which to output the columns.</span>
+        <span class="k">if</span> <span class="n">order_override</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="c"># Default Order</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_order</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aux_headers</span> <span class="o">+</span> <span class="n">export_cols</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># Check to make sure all columns are accounted for.</span>
+            <span class="k">if</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">aux_headers</span> <span class="o">+</span> <span class="n">export_cols</span><span class="p">)</span> <span class="o">==</span> <span class="nb">set</span><span class="p">(</span><span class="n">order_override</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">output_order</span> <span class="o">=</span> <span class="n">order_override</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;order_override does not match </span><span class="se">\</span>
+<span class="s">                                    export_cols and/or aux_cols&#39;</span><span class="p">)</span>
+        <span class="c"># Store our path.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="n">path</span>
+        <span class="c"># The csvwriter object to write the file.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">writer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__init_output__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="c"># A cleaner to clean the tweets for output purposes.</span>
+        <span class="n">cleaner_settings</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&#39;scrub_non_ascii&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span>
+            <span class="s">&#39;scrub_newlines&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span>
+            <span class="s">&#39;scrub_quotes&#39;</span><span class="p">:</span> <span class="bp">True</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cleaner</span> <span class="o">=</span> <span class="n">TweetCleaner</span><span class="p">(</span>
+            <span class="n">all_ops</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">user_settings</span><span class="o">=</span><span class="n">cleaner_settings</span><span class="p">)</span>
+
+    <span class="c"># Initializes the output file and writes the header.</span>
+    <span class="k">def</span> <span class="nf">__init_output__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="c"># Quote all of our headers.</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_order</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span>
+        <span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">quoting</span><span class="o">=</span><span class="n">csv</span><span class="o">.</span><span class="n">QUOTE_ALL</span><span class="p">)</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">writer</span>
+
+<div class="viewcode-block" id="TweetExporter.export_tweet"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetExporter.TweetExporter.export_tweet">[docs]</a>    <span class="k">def</span> <span class="nf">export_tweet</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tweet</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{}):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Writes a tweet to the TweetExporter&#39;s output file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            extra &lt;dict&gt;: Extra non-built-in columns you want to add.</span>
+<span class="sd">                        THIS MUST BE THE SAME FOR EVERY CALL TO EXPORT TWEET</span>
+<span class="sd">                        Format: {header: value_for_this_tweet}</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">out_order</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_order</span> <span class="o">+</span> <span class="n">extra</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">out_order</span><span class="p">:</span>
+            <span class="c"># If the column is a built-in...</span>
+            <span class="k">if</span> <span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">export_cols</span><span class="p">:</span>
+                <span class="c"># Get the generator function</span>
+                <span class="n">generator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getattribute__</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="c"># Call it on the provided tweet.</span>
+                    <span class="n">val</span> <span class="o">=</span> <span class="n">generator</span><span class="p">(</span><span class="n">tweet</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                    <span class="c"># If the tweet doesn&#39;t have the appropriate field.</span>
+                    <span class="c"># We just return an error value.</span>
+                    <span class="n">val</span> <span class="o">=</span> <span class="s">&#39;FEATURE_NOT_FOUND&#39;</span>
+
+                <span class="n">line</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+
+            <span class="c"># Otherwise it must be an aux column...</span>
+            <span class="k">elif</span> <span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">aux_headers</span><span class="p">:</span>
+                <span class="c"># Retrive the provided aux value.</span>
+                <span class="n">header_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aux_headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+                <span class="n">line</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">aux_vals</span><span class="p">[</span><span class="n">header_index</span><span class="p">])</span>
+
+            <span class="k">elif</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">extra</span><span class="p">:</span>
+                <span class="n">line</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">extra</span><span class="p">[</span><span class="n">col</span><span class="p">])</span>
+
+        <span class="c"># Write to the file.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TweetExporter.get_path"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetExporter.TweetExporter.get_path">[docs]</a>    <span class="k">def</span> <span class="nf">get_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            (str): The file-path this exporter is writing to.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span>
+
+
+<span class="c">##########################################</span>
+<span class="c">#     Define Column Behaviours Here      #</span>
+<span class="c">##########################################</span>
+
+<span class="c">#   Note: &#39;tweet&#39; is a single tweet object</span>
+<span class="c">#           in all of the methods below.</span>
+</div>
+<div class="viewcode-block" id="TweetExporter.db_id"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetExporter.TweetExporter.db_id">[docs]</a>    <span class="k">def</span> <span class="nf">db_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tweet</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">tweet</span><span class="p">[</span><span class="s">&#39;db_id&#39;</span><span class="p">])</span>
+</div>
+<div class="viewcode-block" id="TweetExporter.text"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetExporter.TweetExporter.text">[docs]</a>    <span class="k">def</span> <span class="nf">text</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tweet</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cleaner</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">tweet</span><span class="p">[</span><span class="s">&#39;text&#39;</span><span class="p">])</span>
+</div>
+<div class="viewcode-block" id="TweetExporter.tweet_id"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetExporter.TweetExporter.tweet_id">[docs]</a>    <span class="k">def</span> <span class="nf">tweet_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tweet</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">tweet</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="nb">list</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">tweet</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">tweet</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">])</span>
+</div>
+<div class="viewcode-block" id="TweetExporter.first_level_codes"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetExporter.TweetExporter.first_level_codes">[docs]</a>    <span class="k">def</span> <span class="nf">first_level_codes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tweet</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s">&#39;codes&#39;</span><span class="ow">in</span> <span class="n">tweet</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">container</span> <span class="ow">in</span> <span class="n">tweet</span><span class="p">[</span><span class="s">&#39;codes&#39;</span><span class="p">]:</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">container</span><span class="p">[</span><span class="s">&#39;first&#39;</span><span class="p">])</span>
+            <span class="k">return</span> <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">&#39;&#39;</span>
+</div>
+<div class="viewcode-block" id="TweetExporter.second_level_codes"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetExporter.TweetExporter.second_level_codes">[docs]</a>    <span class="k">def</span> <span class="nf">second_level_codes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tweet</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s">&#39;codes&#39;</span><span class="ow">in</span> <span class="n">tweet</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">ignore</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;coder_id&#39;</span><span class="p">,</span>
+                      <span class="s">&#39;first&#39;</span><span class="p">,</span>
+                      <span class="s">&#39;Affirm&#39;</span><span class="p">,</span>
+                      <span class="s">&#39;Deny&#39;</span><span class="p">,</span>
+                      <span class="s">&#39;Neutral&#39;</span><span class="p">,</span>
+                      <span class="s">&#39;Unrelated&#39;</span><span class="p">,</span>
+                      <span class="s">&#39;Uncodable&#39;</span>
+                      <span class="p">]</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">container</span> <span class="ow">in</span> <span class="n">tweet</span><span class="p">[</span><span class="s">&#39;codes&#39;</span><span class="p">]:</span>
+                <span class="k">for</span> <span class="n">code</span> <span class="ow">in</span> <span class="n">container</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">code</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ignore</span><span class="p">:</span>
+                        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+            <span class="k">return</span> <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">&#39;&#39;</span>
+</div>
+<div class="viewcode-block" id="TweetExporter.final_codes"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetExporter.TweetExporter.final_codes">[docs]</a>    <span class="k">def</span> <span class="nf">final_codes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tweet</span><span class="p">):</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="s">&#39;first_final&#39;</span> <span class="ow">in</span> <span class="n">tweet</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tweet</span><span class="p">[</span><span class="s">&#39;first_final&#39;</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="s">&#39;second_final&#39;</span> <span class="ow">in</span> <span class="n">tweet</span><span class="p">:</span>
+            <span class="n">second_final</span> <span class="o">=</span> <span class="n">tweet</span><span class="p">[</span><span class="s">&#39;second_final&#39;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">code</span> <span class="ow">in</span> <span class="n">second_final</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">code</span> <span class="o">!=</span> <span class="s">&#39;Adjudicate&#39;</span><span class="p">:</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="s">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="TweetExporter.time"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetExporter.TweetExporter.time">[docs]</a>    <span class="k">def</span> <span class="nf">time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tweet</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+<span class="c">#####################################</span>
+<span class="c">#     Testing Stuff For Testing     #</span>
+<span class="c">#####################################</span>
+
+</div></div>
+<div class="viewcode-block" id="test"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetExporter.test">[docs]</a><span class="k">def</span> <span class="nf">test</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="n">rumor</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">utils</span>
+    <span class="n">mongo</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">mongo_connect</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="n">rumor</span><span class="p">)</span>
+    <span class="n">test</span> <span class="o">=</span> <span class="n">mongo</span><span class="o">.</span><span class="n">find</span><span class="p">({})</span><span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="n">e</span> <span class="o">=</span> <span class="n">TweetExporter</span><span class="p">(</span>
+        <span class="s">&#39;test.csv&#39;</span><span class="p">,</span>
+        <span class="p">[</span><span class="s">&quot;db_id&quot;</span><span class="p">,</span> <span class="s">&quot;tweet_id&quot;</span><span class="p">,</span> <span class="s">&quot;text&quot;</span><span class="p">],</span>
+        <span class="p">{</span><span class="s">&#39;rumor&#39;</span><span class="p">:</span> <span class="n">rumor</span><span class="p">},</span>
+        <span class="p">[</span><span class="s">&quot;db_id&quot;</span><span class="p">,</span> <span class="s">&quot;rumor&quot;</span><span class="p">,</span> <span class="s">&quot;tweet_id&quot;</span><span class="p">,</span> <span class="s">&quot;text&quot;</span><span class="p">]</span>
+    <span class="p">)</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">test</span><span class="p">:</span>
+        <span class="n">e</span><span class="o">.</span><span class="n">export_tweet</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+
+    <span class="nb">exit</span><span class="p">()</span>
+</div>
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">argparse</span>
+
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span>
+        <span class="n">description</span><span class="o">=</span><span class="s">&#39;Manages the writing of tweets to &#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s">&#39;db_name&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">&#39;The name of the database to use.&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s">&#39;rumor_name&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">&#39;The name of the rumor to use.&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+    <span class="n">test</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">db_name</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">rumor_name</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Logan Walls, Jim Maddock, Ahmer Arif.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.6</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

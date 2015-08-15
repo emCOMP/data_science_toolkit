@@ -1,0 +1,30 @@
+dstk.database package
+=====================
+
+Submodules
+----------
+
+dstk.database.config module
+---------------------------
+
+.. automodule:: dstk.database.config
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+dstk.database.utils module
+--------------------------
+
+.. automodule:: dstk.database.utils
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: dstk.database
+    :members:
+    :undoc-members:
+    :show-inheritance:

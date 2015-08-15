@@ -1,0 +1,260 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>dstk.management package &mdash; Data Science Toolkit 2.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '2.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Data Science Toolkit 2.0 documentation" href="index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="dstk-management-package">
+<h1>dstk.management package<a class="headerlink" href="#dstk-management-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-dstk.management.TweetManager">
+<span id="dstk-management-tweetmanager-module"></span><h2>dstk.management.TweetManager module<a class="headerlink" href="#module-dstk.management.TweetManager" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="dstk.management.TweetManager.TweetManager">
+<em class="property">class </em><code class="descclassname">dstk.management.TweetManager.</code><code class="descname">TweetManager</code><span class="sig-paren">(</span><em>args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/management/TweetManager.html#TweetManager"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.management.TweetManager.TweetManager" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Manages the movement of tweets through the qualitative
+coding pipeline.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>soon...</strong> (<em>Coming</em>) &#8211; </td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="dstk.management.TweetManager.TweetManager.__delegate__">
+<code class="descname">__delegate__</code><span class="sig-paren">(</span><em>tweet</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/management/TweetManager.html#TweetManager.__delegate__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.management.TweetManager.TweetManager.__delegate__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper for generate_coding:
+Assigns a tweet to the appropriate number of coders
+for coding and writes it to their respective csv files.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="dstk.management.TweetManager.TweetManager.__handle_existing_codes__">
+<code class="descname">__handle_existing_codes__</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/management/TweetManager.html#TweetManager.__handle_existing_codes__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.management.TweetManager.TweetManager.__handle_existing_codes__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handles the case where codes already exist in the
+code_comparison database.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">(bool) Whether or not to continue running.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="dstk.management.TweetManager.TweetManager.__handle_sheet__">
+<code class="descname">__handle_sheet__</code><span class="sig-paren">(</span><em>path</em>, <em>coder=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/management/TweetManager.html#TweetManager.__handle_sheet__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.management.TweetManager.TweetManager.__handle_sheet__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handles reading in one csv sheet.
+(Handles both coding-sheets and adjudication-sheets.)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>path</strong> (<em>str</em>) &#8211; A filepath to the codesheet to be read.</li>
+<li><strong>coder</strong> (<em>coder_object</em>) &#8211; A coder object returned by __get_db_coder__()</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="dstk.management.TweetManager.TweetManager.__upload_one__">
+<code class="descname">__upload_one__</code><span class="sig-paren">(</span><em>csv_path</em>, <em>coder_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/management/TweetManager.html#TweetManager.__upload_one__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.management.TweetManager.TweetManager.__upload_one__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Uploads one csv sheet to the coding tool
+using the TweetManager&#8217;s rumor and the
+provided csv_path and coder_name.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>csv_path</strong> (<em>str</em>) &#8211; path to the csv file to be uploaded</li>
+<li><strong>coder_name</strong> (<em>str</em>) &#8211; name of the coder who will recieve the sheet</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="dstk.management.TweetManager.TweetManager.__upload_to_coding_tool__">
+<code class="descname">__upload_to_coding_tool__</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/management/TweetManager.html#TweetManager.__upload_to_coding_tool__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.management.TweetManager.TweetManager.__upload_to_coding_tool__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Uploads all sheets to the coding tool.
+(Adapts to the &#8216;action&#8217; being performed by the TweetManager.)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="dstk.management.TweetManager.TweetManager.compress">
+<code class="descname">compress</code><span class="sig-paren">(</span><em>args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/management/TweetManager.html#TweetManager.compress"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.management.TweetManager.TweetManager.compress" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a collection in the rumor_compression database
+which maps duplicate tweets to a single representative.
+(The representative is coded, then the codes are propagated
+to the other related tweets.)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="dstk.management.TweetManager.TweetManager.generate_adjudication">
+<code class="descname">generate_adjudication</code><span class="sig-paren">(</span><em>args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/management/TweetManager.html#TweetManager.generate_adjudication"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.management.TweetManager.TweetManager.generate_adjudication" title="Permalink to this definition">¶</a></dt>
+<dd><p>Imports codes into the database, performs auto-adjudication
+and then outputs adjudication sheets.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="dstk.management.TweetManager.TweetManager.generate_coding">
+<code class="descname">generate_coding</code><span class="sig-paren">(</span><em>args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/management/TweetManager.html#TweetManager.generate_coding"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.management.TweetManager.TweetManager.generate_coding" title="Permalink to this definition">¶</a></dt>
+<dd><p>Exports an entire rumor to coding sheets.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="dstk.management.TweetManager.TweetManager.generate_training">
+<code class="descname">generate_training</code><span class="sig-paren">(</span><em>args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/management/TweetManager.html#TweetManager.generate_training"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.management.TweetManager.TweetManager.generate_training" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates a random sample of tweets for training.
+Uses edit distance to ensure a diverse sample.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>args.sample_size</strong> (<em>int</em>) &#8211; Number of tweets desired for the sample.</li>
+<li><strong>args.edit_distance</strong> (<em>int</em>) &#8211; The minimum edit_distance for a tweet
+to be considered unique.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="dstk.management.TweetManager.TweetManager.propagate_codes">
+<code class="descname">propagate_codes</code><span class="sig-paren">(</span><em>args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/management/TweetManager.html#TweetManager.propagate_codes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.management.TweetManager.TweetManager.propagate_codes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="dstk.management.TweetManager.TweetManager.upload_adjudication">
+<code class="descname">upload_adjudication</code><span class="sig-paren">(</span><em>args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/management/TweetManager.html#TweetManager.upload_adjudication"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.management.TweetManager.TweetManager.upload_adjudication" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="docutils">
+<dt>FUNCTION:</dt>
+<dd>Uploads adjudicated tweets to the database.</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="dstk.management.TweetManager.validate_args">
+<code class="descclassname">dstk.management.TweetManager.</code><code class="descname">validate_args</code><span class="sig-paren">(</span><em>action</em>, <em>args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/management/TweetManager.html#validate_args"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.management.TweetManager.validate_args" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-dstk.management">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-dstk.management" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">dstk.management package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-dstk.management.TweetManager">dstk.management.TweetManager module</a></li>
+<li><a class="reference internal" href="#module-dstk.management">Module contents</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/dstk.management.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Logan Walls, Jim Maddock, Ahmer Arif.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.6</a>
+      
+      |
+      <a href="_sources/dstk.management.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

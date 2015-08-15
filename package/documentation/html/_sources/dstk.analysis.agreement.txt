@@ -1,0 +1,22 @@
+dstk.analysis.agreement package
+===============================
+
+Submodules
+----------
+
+dstk.analysis.agreement.kappa module
+------------------------------------
+
+.. automodule:: dstk.analysis.agreement.kappa
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: dstk.analysis.agreement
+    :members:
+    :undoc-members:
+    :show-inheritance:

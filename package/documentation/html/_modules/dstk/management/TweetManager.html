@@ -1,0 +1,1003 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>dstk.management.TweetManager &mdash; Data Science Toolkit 2.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '2.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="Data Science Toolkit 2.0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for dstk.management.TweetManager</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">csv</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">nltk</span>
+<span class="kn">from</span> <span class="nn">dstk.database</span> <span class="kn">import</span> <span class="n">utils</span>
+<span class="kn">from</span> <span class="nn">dstk.database</span> <span class="kn">import</span> <span class="n">config</span>
+<span class="kn">from</span> <span class="nn">dstk.processing.TweetCleaner</span> <span class="kn">import</span> <span class="n">TweetCleaner</span>
+<span class="kn">from</span> <span class="nn">dstk.processing.TweetExporter</span> <span class="kn">import</span> <span class="n">TweetExporter</span>
+
+
+<div class="viewcode-block" id="TweetManager"><a class="viewcode-back" href="../../../dstk.management.html#dstk.management.TweetManager.TweetManager">[docs]</a><span class="k">class</span> <span class="nc">TweetManager</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Manages the movement of tweets through the qualitative</span>
+<span class="sd">    coding pipeline.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        Coming soon...</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="c"># name of the event&#39;s db</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">event</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">db_name</span>
+
+        <span class="c"># name of the rumor to work with</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rumor</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">rumor_name</span>
+
+        <span class="c"># db containing all event tweets</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">db</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">mongo_connect</span><span class="p">(</span><span class="n">db_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">event</span><span class="p">)</span>
+
+        <span class="c"># db for mapping unique tweets to non-uniques</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">compression</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">mongo_connect</span><span class="p">(</span><span class="n">db_name</span><span class="o">=</span><span class="s">&#39;rumor_compression&#39;</span><span class="p">,</span>
+                                               <span class="n">collection_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rumor</span><span class="p">)</span>
+
+        <span class="c"># db containing metadata about the rumor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rumor_metadata</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">mongo_connect</span><span class="p">(</span><span class="n">db_name</span><span class="o">=</span><span class="s">&#39;rumor_metadata&#39;</span><span class="p">,</span>
+                                                  <span class="n">collection_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rumor</span><span class="p">)</span>
+
+        <span class="c"># db collection for the individual rumor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rumor_collection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__create_rumor_collection__</span><span class="p">()</span>
+
+        <span class="c"># A cleaner to clean our tweets for comparison purposes.</span>
+        <span class="n">cleaner_settings</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&#39;scrub_retweet_text&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span>
+            <span class="s">&#39;scrub_url&#39;</span><span class="p">:</span> <span class="bp">True</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cleaner</span> <span class="o">=</span> <span class="n">TweetCleaner</span><span class="p">(</span>
+            <span class="n">all_ops</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">user_settings</span><span class="o">=</span><span class="n">cleaner_settings</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_tool</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">coding_tool</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">status_log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get_status_document__</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_tool</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tool_path</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">tool_path</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">usernames</span><span class="p">,</span> <span class="s">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tool_users</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">action</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">action</span>
+
+        <span class="c"># Run action-specific initialization.</span>
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s">&#39;generate_training&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__init_training__</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s">&#39;generate_coding&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__init_coding__</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s">&#39;generate_adjudication&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__init_adjudicate__</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s">&#39;upload_adjudication&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__init_adjudicate__</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init_training__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="c"># Modify the export columns.</span>
+        <span class="n">export_cols</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">export_cols</span>
+        <span class="n">export_cols</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s">&#39;db_id&#39;</span><span class="p">)</span>
+
+        <span class="c"># An exporter to handle tweet export.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exporter</span> <span class="o">=</span> <span class="n">TweetExporter</span><span class="p">(</span>
+            <span class="n">args</span><span class="o">.</span><span class="n">export_path</span><span class="p">,</span>
+            <span class="n">export_cols</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">.</span><span class="n">aux_cols</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">.</span><span class="n">col_order</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init_coding__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="c"># Check to see if we have a compression database</span>
+        <span class="n">compression_exists</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">compression</span><span class="o">.</span><span class="n">find_one</span><span class="p">())</span>
+
+        <span class="c"># If we don&#39;t have a compression database...</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">compression_exists</span><span class="p">:</span>
+            <span class="c"># Compress before we generate the sheet.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__compress__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">coders_per_tweet</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">coders_per</span>
+        <span class="n">tweets_to_code</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compression</span><span class="o">.</span><span class="n">count</span><span class="p">()</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">coders_per_tweet</span>
+
+        <span class="c"># Read the Coder Assigments csv.</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">coder_assignments</span><span class="p">,</span> <span class="s">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">DictReader</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            <span class="c"># Make a dict of {coder_name:load}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coders</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s">&#39;coder&#39;</span><span class="p">]):</span> <span class="mi">1</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s">&#39;load&#39;</span><span class="p">])</span> <span class="o">*</span> <span class="n">tweets_to_code</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">}</span>
+            <span class="c"># We will keep this list in case we need to assign</span>
+            <span class="c"># extra tweets. (Due to the random assignment</span>
+            <span class="c"># sometimes the load can get shifted by a couple tweets).</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">backup_coders</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c"># Check to make sure the assignment numbers add up.</span>
+        <span class="n">tweets_assigned</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coders</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">tweets_to_code</span> <span class="o">&gt;</span> <span class="n">tweets_assigned</span><span class="p">:</span>
+            <span class="n">diff</span> <span class="o">=</span> <span class="n">tweets_to_code</span> <span class="o">-</span> <span class="n">tweets_assigned</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="nb">str</span><span class="p">(</span><span class="n">diff</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39; tweets are not assigned. Check your math?&#39;</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># Make a dict of {coder_name:coder&#39;s exporter}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sheets</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">coder_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">coders</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="c"># Create an exporter object for the coder.</span>
+                <span class="n">exporter</span> <span class="o">=</span> <span class="n">TweetExporter</span><span class="p">(</span>
+                    <span class="n">args</span><span class="o">.</span><span class="n">directory</span> <span class="o">+</span> <span class="s">&#39;/&#39;</span> <span class="o">+</span> <span class="n">coder_name</span> <span class="o">+</span> <span class="s">&#39;.csv&#39;</span><span class="p">,</span>
+                    <span class="n">args</span><span class="o">.</span><span class="n">export_cols</span><span class="p">,</span>
+                    <span class="n">args</span><span class="o">.</span><span class="n">aux_cols</span><span class="p">,</span>
+                    <span class="n">args</span><span class="o">.</span><span class="n">col_order</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">sheets</span><span class="p">[</span><span class="n">coder_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">exporter</span>
+
+    <span class="k">def</span> <span class="nf">__init_adjudicate__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="c"># What level of codes we&#39;re adjudicating</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">adjudication_level</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;No adjudication level provided!&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">adjudication_level</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">adjudication_level</span>
+
+            <span class="c"># This will be used to update the rumor_metadata</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">adjudication_level</span> <span class="o">==</span> <span class="s">&#39;first&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">adj_meta_prefix</span> <span class="o">=</span> <span class="s">&#39;adjudication1&#39;</span>
+
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">adjudication_level</span> <span class="o">==</span> <span class="s">&#39;both&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">adj_meta_prefix</span> <span class="o">=</span> <span class="s">&#39;adjudication_both&#39;</span>
+
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">adjudication_level</span> <span class="o">==</span> <span class="s">&#39;second&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">adj_meta_prefix</span> <span class="o">=</span> <span class="s">&#39;adjudication2&#39;</span>
+
+        <span class="c"># Check to see if we have a compression database</span>
+        <span class="n">compression_exists</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">compression</span><span class="o">.</span><span class="n">find_one</span><span class="p">())</span>
+
+        <span class="c"># If we don&#39;t have a compression database...</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">compression_exists</span><span class="p">:</span>
+            <span class="c"># Raise error</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s">&#39;No compression database exists for rumor: &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">rumor</span> <span class="o">+</span>
+                <span class="s">&#39;</span><span class="se">\n</span><span class="s"> Please verify the database and event names.&#39;</span>
+            <span class="p">)</span>
+
+        <span class="c"># DB Holds all of the codes for a given set of tweets.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">code_comparison</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">mongo_connect</span><span class="p">(</span>
+            <span class="n">db_name</span><span class="o">=</span><span class="s">&#39;code_comparison&#39;</span><span class="p">,</span>
+            <span class="n">collection_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rumor</span><span class="p">)</span>
+        <span class="c"># DB mapping coder names to coder ids</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coders</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">mongo_connect</span><span class="p">(</span>
+            <span class="n">db_name</span><span class="o">=</span><span class="s">&#39;coders&#39;</span><span class="p">,</span>
+            <span class="n">collection_name</span><span class="o">=</span><span class="s">&#39;coders&#39;</span><span class="p">)</span>
+        <span class="c"># first level codes (pick 1, mutually exclusive)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">first_codes</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">first_level_codes</span>
+        <span class="c"># second level codes (choose any)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">second_codes</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">second_level_codes</span>
+
+        <span class="c"># Ensure the skip_codes is a subset of the first_level codes.</span>
+        <span class="n">skip_codes</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">skip_second_code</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">set</span><span class="p">(</span><span class="n">skip_codes</span><span class="p">)</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">first_codes</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s">&#39;skip_second_code is not a subset of first_level_codes&#39;</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skip_second_code</span> <span class="o">=</span> <span class="n">skip_codes</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">coders_per_tweet</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">coders_per</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sheet_dir</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">sheet_dir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">infer_coder_names</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">infer_coder_names</span>
+
+        <span class="c"># Read the Adjudicator Assigments csv.</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">adjudicator_assignments</span><span class="p">,</span> <span class="s">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">DictReader</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            <span class="c"># Make a dict of {adjudicator_name:percent}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">adjudicators</span> <span class="o">=</span> <span class="p">{</span><span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s">&#39;adjudicator&#39;</span><span class="p">]):</span> <span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s">&#39;load&#39;</span><span class="p">])</span>
+                                 <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">}</span>
+
+        <span class="c"># Check to make sure the assignment numbers add up.</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">adjudicators</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">total</span> <span class="o">&gt;</span> <span class="mf">1.</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s">&#39;Loads do not add up to 1. (adjudication loads are percentages)</span><span class="se">\</span>
+<span class="s">                Check your math?&#39;</span>
+            <span class="p">)</span>
+
+    <span class="c"># Returns the status document for this rumor from the rumor_metadata</span>
+    <span class="c"># database. (Initializes it if there isn&#39;t one.)</span>
+    <span class="k">def</span> <span class="nf">__get_status_document__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># Check to see if there is an existing status document.</span>
+        <span class="n">check</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rumor_metadata</span><span class="o">.</span><span class="n">find</span><span class="p">({</span><span class="s">&#39;metadata&#39;</span><span class="p">:</span> <span class="s">&#39;status&#39;</span><span class="p">}))</span>
+
+        <span class="k">if</span> <span class="n">check</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">check</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c"># Initialize the record if we don&#39;t have one.</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&#39;Creating metadata document...&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rumor_metadata</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span>
+                <span class="p">{</span><span class="s">&#39;metadata&#39;</span><span class="p">:</span> <span class="s">&#39;status&#39;</span><span class="p">,</span>
+                 <span class="s">&#39;collection_complete&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span>
+                 <span class="s">&#39;collection_coverage_analyzed&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+                 <span class="s">&#39;coding_assigned&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+                 <span class="s">&#39;coding_uploaded&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+                 <span class="s">&#39;auto_adjudicated&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+                 <span class="s">&#39;adjudication1_assigned&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+                 <span class="s">&#39;adjudication1_uploaded&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+                 <span class="s">&#39;adjudication_both_assigned&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+                 <span class="s">&#39;adjudication_both_uploaded&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+                 <span class="s">&#39;adjudication2_assigned&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+                 <span class="s">&#39;adjudication2_uploaded&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+                 <span class="s">&#39;final_codes_propagated&#39;</span><span class="p">:</span> <span class="bp">False</span>
+                 <span class="p">}</span>
+            <span class="p">)</span>
+
+            <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rumor_metadata</span><span class="o">.</span><span class="n">find</span><span class="p">({</span><span class="s">&#39;metadata&#39;</span><span class="p">:</span> <span class="s">&#39;status&#39;</span><span class="p">}))[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__update_rumor_status__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="c"># Ensure the document exists.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get_status_document__</span><span class="p">():</span>
+            <span class="c"># Update with the desired value.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rumor_metadata</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="p">{</span><span class="s">&#39;metadata&#39;</span><span class="p">:</span> <span class="s">&#39;status&#39;</span><span class="p">},</span>
+                <span class="p">{</span><span class="n">status</span><span class="p">:</span> <span class="n">value</span><span class="p">},</span>
+                <span class="n">upsert</span><span class="o">=</span><span class="bp">True</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span>
+                <span class="s">&#39;No status document found for the rumor: &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">rumor</span><span class="p">)</span>
+
+    <span class="c"># Helper method for mapping coder names to coder ids</span>
+    <span class="c"># if no name exists, create a new coder</span>
+    <span class="k">def</span> <span class="nf">__get_db_coder__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coder_name</span><span class="p">,</span> <span class="n">coder_id</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">coder_name</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">coder_id</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span>
+        <span class="k">elif</span> <span class="n">coder_name</span><span class="p">:</span>
+            <span class="n">coder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coders</span><span class="o">.</span><span class="n">find_one</span><span class="p">({</span><span class="s">&#39;name&#39;</span><span class="p">:</span> <span class="n">coder_name</span><span class="p">})</span>
+            <span class="k">if</span> <span class="n">coder</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">coder</span>
+        <span class="k">elif</span> <span class="n">coder_id</span><span class="p">:</span>
+            <span class="n">coder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coders</span><span class="o">.</span><span class="n">find_one</span><span class="p">({</span><span class="s">&#39;coder_id&#39;</span><span class="p">:</span> <span class="n">coder_id</span><span class="p">})</span>
+            <span class="k">if</span> <span class="n">coder</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">coder</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">coder_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coders</span><span class="o">.</span><span class="n">find</span><span class="p">()</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="s">&#39;coder_id&#39;</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">next</span><span class="p">()</span>
+            <span class="n">coder_id</span> <span class="o">=</span> <span class="n">coder_id</span><span class="p">[</span><span class="s">&#39;coder_id&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+            <span class="n">coder_id</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">print</span> <span class="s">&#39;Cannot find existing entry for coder: &#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">coder_name</span><span class="p">)</span>
+        <span class="k">print</span> <span class="s">&#39;Add to database? (Y/n)&#39;</span>
+        <span class="n">user_in</span> <span class="o">=</span> <span class="nb">raw_input</span><span class="p">(</span><span class="s">&#39;&gt;&gt;&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">user_in</span> <span class="o">==</span> <span class="s">&#39;Y&#39;</span><span class="p">:</span>
+            <span class="n">coder</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;name&#39;</span><span class="p">:</span> <span class="n">coder_name</span><span class="p">,</span>
+                     <span class="s">&#39;coder_id&#39;</span><span class="p">:</span> <span class="n">coder_id</span><span class="p">}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coders</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">coder</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">coder</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&#39;Aborting...&#39;</span>
+            <span class="nb">exit</span><span class="p">()</span>
+
+<div class="viewcode-block" id="TweetManager.__handle_existing_codes__"><a class="viewcode-back" href="../../../dstk.management.html#dstk.management.TweetManager.TweetManager.__handle_existing_codes__">[docs]</a>    <span class="k">def</span> <span class="nf">__handle_existing_codes__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Handles the case where codes already exist in the</span>
+<span class="sd">        code_comparison database.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            (bool) Whether or not to continue running.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">print</span> <span class="s">&#39;WARNING: Codes alreay present in database!&#39;</span>
+        <span class="k">print</span> <span class="s">&#39;Select an action:&#39;</span><span class="p">,</span>
+        <span class="k">print</span> <span class="s">&#39;Overwrite Existing Codes (!w)&#39;</span>
+        <span class="k">print</span> <span class="s">&#39;Upload anyway (u)&#39;</span>
+        <span class="k">print</span> <span class="s">&#39;Abort (a)&#39;</span>
+        <span class="n">user_in</span> <span class="o">=</span> <span class="nb">raw_input</span><span class="p">(</span><span class="s">&#39;&gt;&gt;&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">user_in</span> <span class="o">==</span> <span class="s">&#39;!w&#39;</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&#39;You have specified you want to overwrite.&#39;</span>
+            <span class="k">print</span> <span class="s">&#39;DO NOT PROCEED UNLESS YOU ARE SURE!&#39;</span>
+            <span class="k">print</span> <span class="s">&#39;Proceed?(Y/n)&#39;</span>
+            <span class="n">confirm</span> <span class="o">=</span> <span class="nb">raw_input</span><span class="p">(</span><span class="s">&#39;&gt;&gt;&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">confirm</span> <span class="o">==</span> <span class="s">&#39;Y&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">code_comparison</span><span class="o">.</span><span class="n">drop</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">exit</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">user_in</span> <span class="o">==</span> <span class="s">&#39;u&#39;</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&#39;You have specified you want to upload anyway.&#39;</span>
+            <span class="k">print</span> <span class="s">&#39;CAUTION:</span><span class="se">\t</span><span class="s">THIS ACTION CANNOT BE UNDONE&#39;</span>
+            <span class="k">print</span> <span class="s">&#39;Proceed?(Y/n)&#39;</span>
+            <span class="n">confirm</span> <span class="o">=</span> <span class="nb">raw_input</span><span class="p">(</span><span class="s">&#39;&gt;&gt;&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">confirm</span> <span class="o">!=</span> <span class="s">&#39;Y&#39;</span><span class="p">:</span>
+                <span class="nb">exit</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">exit</span><span class="p">()</span>
+</div>
+    <span class="k">def</span> <span class="nf">__create_rumor_collection__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># Create a connection to the database.</span>
+        <span class="c"># (This creates a new collection if none exists.)</span>
+        <span class="n">rumor_collection</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">mongo_connect</span><span class="p">(</span><span class="n">db_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">event</span><span class="p">,</span>
+                                               <span class="n">collection_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rumor</span><span class="p">)</span>
+
+        <span class="c"># If the collection is empty, we haven&#39;t made one before.</span>
+        <span class="k">if</span> <span class="n">rumor_collection</span><span class="o">.</span><span class="n">find</span><span class="p">()</span><span class="o">.</span><span class="n">count</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&#39;!!! Rumor collection does not exist !!!&#39;</span>
+            <span class="k">print</span> <span class="s">&#39;Creating collection...&#39;</span>
+            <span class="n">insert_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="c"># Get all of the tweets matching the rumor query.</span>
+            <span class="n">tweet_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__find_tweets__</span><span class="p">()</span>
+
+            <span class="c"># Insert the tweets into the collection in batches of 1000.</span>
+            <span class="k">for</span> <span class="n">tweet</span> <span class="ow">in</span> <span class="n">tweet_list</span><span class="p">:</span>
+                <span class="n">insert_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tweet</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">insert_list</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1000</span><span class="p">:</span>
+                    <span class="n">rumor_collection</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">insert_list</span><span class="p">)</span>
+                    <span class="n">insert_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="c"># Insert the final batch of tweets.</span>
+            <span class="n">rumor_collection</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">insert_list</span><span class="p">)</span>
+            <span class="n">rumor_collection</span><span class="o">.</span><span class="n">ensure_index</span><span class="p">(</span><span class="s">&#39;id&#39;</span><span class="p">)</span>
+            <span class="n">rumor_collection</span><span class="o">.</span><span class="n">ensure_index</span><span class="p">(</span><span class="s">&#39;created_ts&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&#39;Rumor collection found.&#39;</span>
+
+        <span class="k">return</span> <span class="n">rumor_collection</span>
+
+    <span class="c"># Helper method for finding rumor specific tweets from config.py</span>
+    <span class="k">def</span> <span class="nf">__find_tweets__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">rumor_terms</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">rumor</span><span class="p">]</span>
+        <span class="n">tweet_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="k">print</span> <span class="s">&#39;Locating tweets...&#39;</span>
+        <span class="k">return</span> <span class="n">tweet_list</span>
+
+    <span class="c"># Helper method for creating a list of unique tweets from a rumor</span>
+    <span class="k">def</span> <span class="nf">__compress__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">sample</span><span class="p">:</span>
+            <span class="n">tweet_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rumor_collection</span><span class="o">.</span><span class="n">find</span><span class="p">({</span><span class="s">&#39;sample&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tweet_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__find_tweets__</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compression</span><span class="o">.</span><span class="n">find</span><span class="p">()</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span>
+                <span class="s">&#39;db_id&#39;</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">next</span><span class="p">()[</span><span class="s">&#39;db_id&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+            <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">print</span> <span class="s">&#39;Compressing...&#39;</span>
+        <span class="k">for</span> <span class="n">tweet</span> <span class="ow">in</span> <span class="n">tweet_list</span><span class="p">:</span>
+            <span class="c"># Clean the text.</span>
+            <span class="n">text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cleaner</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">tweet</span><span class="p">[</span><span class="s">&#39;text&#39;</span><span class="p">])</span>
+
+            <span class="c"># If after cleaning we find an exact match in the database...</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">compression</span><span class="o">.</span><span class="n">find_one</span><span class="p">({</span><span class="s">&#39;text&#39;</span><span class="p">:</span> <span class="n">text</span><span class="p">})</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="c"># Add this tweet to the compression list for the match.</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">compression</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;text&#39;</span><span class="p">:</span> <span class="n">text</span><span class="p">},</span>
+                                        <span class="p">{</span><span class="s">&#39;$addToSet&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;id&#39;</span><span class="p">:</span> <span class="n">tweet</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]}})</span>
+
+            <span class="c"># Otherwise...</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c"># Add a new entry to the database.</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">compression</span><span class="o">.</span><span class="n">insert</span><span class="p">({</span><span class="s">&#39;db_id&#39;</span><span class="p">:</span> <span class="n">count</span><span class="p">,</span>
+                                         <span class="s">&#39;rumor&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">rumor</span><span class="p">,</span>
+                                         <span class="s">&#39;text&#39;</span><span class="p">:</span> <span class="n">text</span><span class="p">,</span>
+                                         <span class="s">&#39;id&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">tweet</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]]})</span>
+
+                <span class="c"># NOTE: Old code, not sure what this does / if important.</span>
+                <span class="k">if</span> <span class="n">count</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">compression</span><span class="o">.</span><span class="n">ensure_index</span><span class="p">(</span><span class="s">&#39;text&#39;</span><span class="p">)</span>
+                <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+
+<div class="viewcode-block" id="TweetManager.compress"><a class="viewcode-back" href="../../../dstk.management.html#dstk.management.TweetManager.TweetManager.compress">[docs]</a>    <span class="k">def</span> <span class="nf">compress</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates a collection in the rumor_compression database</span>
+<span class="sd">        which maps duplicate tweets to a single representative.</span>
+<span class="sd">        (The representative is coded, then the codes are propagated</span>
+<span class="sd">        to the other related tweets.)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Check to make sure compression hasn&#39;t already been run</span>
+        <span class="n">check</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compression</span><span class="o">.</span><span class="n">find_one</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">check</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&#39;This rumor has already been compressed!&#39;</span>
+            <span class="k">print</span> <span class="s">&#39;Please drop the collection manually if</span><span class="se">\</span>
+<span class="s">                    you need to compress again&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__compress__</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="TweetManager.generate_training"><a class="viewcode-back" href="../../../dstk.management.html#dstk.management.TweetManager.TweetManager.generate_training">[docs]</a>    <span class="k">def</span> <span class="nf">generate_training</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generates a random sample of tweets for training.</span>
+<span class="sd">        Uses edit distance to ensure a diverse sample.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            args.sample_size (int): Number of tweets desired for the sample.</span>
+<span class="sd">            args.edit_distance (int): The minimum edit_distance for a tweet</span>
+<span class="sd">                                        to be considered unique.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sample_size</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">sample_size</span>
+        <span class="n">edit_distance</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">edit_distance</span>
+
+        <span class="c"># Get the whole set of tweets.</span>
+        <span class="n">tweet_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__find_tweets__</span><span class="p">()</span>
+        <span class="k">print</span> <span class="s">&#39;Selecting &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">sample_size</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39; unique tweets...&#39;</span>
+
+        <span class="c"># How many tweets we have selected so far.</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="c"># The text of the tweets we&#39;ve selected so far.</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">tweet</span> <span class="ow">in</span> <span class="n">tweet_list</span><span class="p">:</span>
+
+            <span class="c"># Clean the tweet text.</span>
+            <span class="n">text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cleaner</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">tweet</span><span class="p">[</span><span class="s">&#39;text&#39;</span><span class="p">])</span>
+
+            <span class="c"># Assume the tweet is unique.</span>
+            <span class="n">unique</span> <span class="o">=</span> <span class="bp">True</span>
+
+            <span class="c"># For each tweet &#39;y&#39; which we&#39;ve selected so far...</span>
+            <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+
+                <span class="c"># Check the edit distance between the tweet &#39;y&#39; and</span>
+                <span class="c"># our new tweet &#39;tweet&#39;.</span>
+                <span class="n">cur_edit_dist</span> <span class="o">=</span> <span class="n">nltk</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">edit_distance</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+
+                <span class="c"># If any of the edit distances are below the threshold</span>
+                <span class="c"># we say the tweet is not unique.</span>
+                <span class="k">if</span> <span class="n">cur_edit_dist</span> <span class="o">&lt;</span> <span class="n">edit_distance</span><span class="p">:</span>
+                    <span class="n">unique</span> <span class="o">=</span> <span class="bp">False</span>
+
+            <span class="c"># If we still believe the tweet is unique after the</span>
+            <span class="c"># comparisons above...</span>
+            <span class="k">if</span> <span class="n">unique</span><span class="p">:</span>
+                <span class="c"># Record our selection</span>
+                <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+
+                <span class="c"># Write the tweet to the file.</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">exporter</span><span class="o">.</span><span class="n">export_tweet</span><span class="p">(</span><span class="n">tweet</span><span class="p">)</span>
+
+            <span class="c"># If we&#39;ve achieved the desired &#39;sample_size&#39;, then stop.</span>
+            <span class="k">if</span> <span class="n">count</span> <span class="o">&gt;=</span> <span class="n">sample_size</span><span class="p">:</span>
+                <span class="k">break</span>
+
+        <span class="c"># If we&#39;re uploading to the coding tool...</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_tool</span><span class="p">:</span>
+            <span class="c"># Upload everything.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__upload_to_coding_tool__</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="TweetManager.__delegate__"><a class="viewcode-back" href="../../../dstk.management.html#dstk.management.TweetManager.TweetManager.__delegate__">[docs]</a>    <span class="k">def</span> <span class="nf">__delegate__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tweet</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Helper for generate_coding:</span>
+<span class="sd">        Assigns a tweet to the appropriate number of coders</span>
+<span class="sd">        for coding and writes it to their respective csv files.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># If we need to assign extra tweets (in order to ensure)</span>
+        <span class="c"># each tweet is covered by the desired number of coders.</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coders</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">coders_per_tweet</span><span class="p">:</span>
+            <span class="c"># Bring each backup coder in for 1 more tweet.</span>
+            <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">backup_coders</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">coders</span><span class="p">[</span><span class="n">b</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+            <span class="c"># Clear the backup list</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">backup_coders</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c"># Get the list of availiable coders.</span>
+        <span class="n">avaliable_coders</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coders</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coders_per_tweet</span><span class="p">):</span>
+            <span class="c"># Choose a coder at random.</span>
+            <span class="n">cur_coder</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">avaliable_coders</span><span class="p">)</span>
+            <span class="c"># Write the tweet to thier sheet.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sheets</span><span class="p">[</span><span class="n">cur_coder</span><span class="p">]</span><span class="o">.</span><span class="n">export_tweet</span><span class="p">(</span><span class="n">tweet</span><span class="p">)</span>
+
+            <span class="c"># Remove them from the avaliable coders</span>
+            <span class="c"># so we don&#39;t assign this tweet to the same person.</span>
+            <span class="n">avaliable_coders</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">cur_coder</span><span class="p">)</span>
+
+            <span class="c"># Decrement the coder&#39;s load by 1.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coders</span><span class="p">[</span><span class="n">cur_coder</span><span class="p">]</span> <span class="o">-=</span> <span class="mi">1</span>
+
+            <span class="c"># If they&#39;ve reached the number of tweets</span>
+            <span class="c"># assigned to them, stop assigning them tweets.</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">coders</span><span class="p">[</span><span class="n">cur_coder</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">coders</span><span class="p">[</span><span class="n">cur_coder</span><span class="p">]</span>
+
+                <span class="c"># Add them to backup in case we go over.</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">backup_coders</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cur_coder</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TweetManager.__upload_one__"><a class="viewcode-back" href="../../../dstk.management.html#dstk.management.TweetManager.TweetManager.__upload_one__">[docs]</a>    <span class="k">def</span> <span class="nf">__upload_one__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">csv_path</span><span class="p">,</span> <span class="n">coder_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Uploads one csv sheet to the coding tool</span>
+<span class="sd">            using the TweetManager&#39;s rumor and the</span>
+<span class="sd">            provided csv_path and coder_name.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                csv_path (str): path to the csv file to be uploaded</span>
+<span class="sd">                coder_name (str): name of the coder who will recieve the sheet</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Build up the command line call to the uploader.</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tool_path</span> <span class="o">+</span> <span class="s">&#39; import_csv&#39;</span>
+        <span class="n">command</span> <span class="o">+=</span> <span class="s">&#39; &#39;</span> <span class="o">+</span> <span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">csv_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rumor</span><span class="p">,</span> <span class="n">coder_name</span><span class="p">])</span>
+        <span class="n">command</span> <span class="o">+=</span> <span class="s">&#39; --codescheme misinfo-first&#39;</span>
+        <span class="n">command</span> <span class="o">+=</span> <span class="s">&#39; --codescheme misinfo-second&#39;</span>
+        <span class="n">command</span> <span class="o">+=</span> <span class="s">&#39; --codescheme misinfo-aux&#39;</span>
+
+        <span class="c"># Call the command.</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TweetManager.__upload_to_coding_tool__"><a class="viewcode-back" href="../../../dstk.management.html#dstk.management.TweetManager.TweetManager.__upload_to_coding_tool__">[docs]</a>    <span class="k">def</span> <span class="nf">__upload_to_coding_tool__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Uploads all sheets to the coding tool.</span>
+<span class="sd">        (Adapts to the &#39;action&#39; being performed by the TweetManager.)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># If we&#39;re outputting training...</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s">&#39;generate_training&#39;</span><span class="p">:</span>
+            <span class="c"># Use all known users on coding tool and use the path to the</span>
+            <span class="c"># training sheet as everyone&#39;s path.</span>
+            <span class="n">outputs</span> <span class="o">=</span> <span class="p">{</span><span class="n">coder_name</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exporter</span><span class="o">.</span><span class="n">get_path</span><span class="p">()</span>
+                       <span class="k">for</span> <span class="n">coder_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tool_users</span><span class="o">.</span><span class="n">values</span><span class="p">()}</span>
+
+        <span class="c"># If we&#39;re outputting coding...</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s">&#39;generate_coding&#39;</span><span class="p">:</span>
+            <span class="c"># Grab the names and paths from the sheets object.</span>
+            <span class="c"># (sheets is created in __delegate__)</span>
+            <span class="n">outputs</span> <span class="o">=</span> <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">tool_users</span><span class="p">[</span><span class="n">coder_name</span><span class="p">]:</span> <span class="n">exporter</span><span class="o">.</span><span class="n">get_path</span><span class="p">()</span>
+                       <span class="k">for</span> <span class="n">coder_name</span><span class="p">,</span> <span class="n">exporter</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sheets</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()}</span>
+
+        <span class="c"># Upload each sheet to the tool.</span>
+        <span class="k">for</span> <span class="n">coder_name</span><span class="p">,</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">outputs</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__upload_one__</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">coder_name</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TweetManager.generate_coding"><a class="viewcode-back" href="../../../dstk.management.html#dstk.management.TweetManager.TweetManager.generate_coding">[docs]</a>    <span class="k">def</span> <span class="nf">generate_coding</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Exports an entire rumor to coding sheets.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">print</span> <span class="s">&#39;Gathering tweets...&#39;</span>
+        <span class="c"># Get the full list of tweets.</span>
+        <span class="n">tweet_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compression</span><span class="o">.</span><span class="n">find</span><span class="p">({})</span>
+
+        <span class="k">print</span> <span class="s">&#39;Allocating...&#39;</span>
+        <span class="k">for</span> <span class="n">tweet</span> <span class="ow">in</span> <span class="n">tweet_list</span><span class="p">:</span>
+            <span class="c"># Get the full tweet object from the rumor database.</span>
+            <span class="c"># (&#39;tweet&#39; is an object from the compression database so it&#39;s</span>
+            <span class="c">#   missing some text information)</span>
+            <span class="n">full_tweet</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rumor_collection</span><span class="o">.</span><span class="n">find_one</span><span class="p">({</span><span class="s">&#39;id&#39;</span><span class="p">:</span> <span class="n">tweet</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]})</span>
+
+            <span class="c"># If the tweet exists...</span>
+            <span class="k">if</span> <span class="n">full_tweet</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">tweet</span><span class="p">[</span><span class="s">&#39;text&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">full_tweet</span><span class="p">[</span><span class="s">&#39;text&#39;</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__delegate__</span><span class="p">(</span><span class="n">tweet</span><span class="p">)</span>
+
+        <span class="c"># If we&#39;re uploading to the coding tool...</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_tool</span><span class="p">:</span>
+            <span class="c"># Upload everything.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__upload_to_coding_tool__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__update_rumor_status__</span><span class="p">(</span><span class="s">&#39;coding_assigned&#39;</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">__upload_all__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&#39;Uploading codes from sheets...&#39;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s">&#39;generate_adjudication&#39;</span><span class="p">:</span>
+            <span class="c"># Check if we&#39;ve already imported these codes.</span>
+            <span class="n">already_imported</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">code_comparison</span><span class="o">.</span><span class="n">find_one</span><span class="p">())</span>
+            <span class="k">if</span> <span class="n">already_imported</span><span class="p">:</span>
+                <span class="c"># Handle the conflict.</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__handle_existing_codes__</span><span class="p">()</span>
+
+        <span class="c"># Read all of the files from the provided directory.</span>
+        <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sheet_dir</span><span class="p">):</span>
+            <span class="c"># If the file is a csv...</span>
+            <span class="k">if</span> <span class="n">filename</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&#39;.csv&#39;</span><span class="p">):</span>
+
+                <span class="c"># The filepath to this csv.</span>
+                <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sheet_dir</span> <span class="o">+</span> <span class="s">&#39;/&#39;</span> <span class="o">+</span> <span class="n">filename</span>
+
+                <span class="c"># If we&#39;re generating adjudication sheets...</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s">&#39;generate_adjudication&#39;</span><span class="p">:</span>
+                    <span class="c"># Get the coder&#39;s name.</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">infer_coder_names</span><span class="p">:</span>
+                        <span class="n">coder_name</span> <span class="o">=</span> <span class="n">filename</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">&#39;.csv&#39;</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">print</span> <span class="s">&#39;enter coder name (file: </span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="n">filename</span>
+                        <span class="n">coder_name</span> <span class="o">=</span> <span class="nb">raw_input</span><span class="p">(</span><span class="s">&#39;&gt;&gt; &#39;</span><span class="p">)</span>
+
+                    <span class="c"># Retrive their database entry.</span>
+                    <span class="n">coder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get_db_coder__</span><span class="p">(</span><span class="n">coder_name</span><span class="o">=</span><span class="n">coder_name</span><span class="p">)</span>
+                    <span class="c"># Read the codesheet passing in a coder.</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__handle_sheet__</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">coder</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c"># Only pass the path.</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__handle_sheet__</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__auto_adjudicate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&#39;Auto-adjudicating...&#39;</span>
+        <span class="c"># Get all of the tweets with codes uploaded.</span>
+        <span class="n">tweets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">code_comparison</span><span class="o">.</span><span class="n">find</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">tweet</span> <span class="ow">in</span> <span class="n">tweets</span><span class="p">:</span>
+            <span class="n">code_counts</span> <span class="o">=</span> <span class="p">{}</span>
+
+            <span class="k">for</span> <span class="n">codes</span> <span class="ow">in</span> <span class="n">tweet</span><span class="p">[</span><span class="s">&#39;codes&#39;</span><span class="p">]:</span>
+                <span class="c"># Count the first code votes for the tweet.</span>
+                <span class="n">code_counts</span><span class="p">[</span><span class="n">codes</span><span class="p">[</span><span class="s">&#39;first&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">code_counts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="n">codes</span><span class="p">[</span><span class="s">&#39;first&#39;</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+
+                <span class="c"># Count the votes for each second-level code.</span>
+                <span class="k">for</span> <span class="n">code</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">second_codes</span><span class="p">:</span>
+                    <span class="n">code_counts</span><span class="p">[</span><span class="n">code</span><span class="p">]</span> <span class="o">=</span> <span class="n">code_counts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                        <span class="n">code</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">codes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+            <span class="c">#                               #</span>
+            <span class="c"># -------- First Level -------- #</span>
+            <span class="c">#                               #</span>
+            <span class="c"># Sort our list of first codes by the number of marks each one got.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">first_codes</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span>
+                <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">code_counts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                <span class="n">reverse</span><span class="o">=</span><span class="bp">True</span>
+            <span class="p">)</span>
+            <span class="c"># The most popular first-level code for this tweet.</span>
+            <span class="n">popular_code</span> <span class="o">=</span> <span class="n">code_counts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">first_codes</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span>
+
+            <span class="c"># If the most popular choice was chosen by a majority...</span>
+            <span class="k">if</span> <span class="nb">float</span><span class="p">(</span><span class="n">popular_code</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">coders_per_tweet</span> <span class="o">&gt;</span> <span class="o">.</span><span class="mi">5</span><span class="p">:</span>
+                <span class="c"># Mark that code as the final first-level code.</span>
+                <span class="n">first_final</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">first_codes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c"># Otherwise, mark it for adjudication.</span>
+                <span class="n">first_final</span> <span class="o">=</span> <span class="s">&#39;Adjudicate&#39;</span>
+
+            <span class="c">#                                #</span>
+            <span class="c"># -------- Second Level -------- #</span>
+            <span class="c">#                                #</span>
+            <span class="c"># Only adjudicate the second level if</span>
+            <span class="c"># the first-level code is one which</span>
+            <span class="c"># allows second-level codes</span>
+            <span class="c"># (ex. ignore second-level codes for &#39;unrelated&#39; tweets.)</span>
+            <span class="c">#</span>
+            <span class="c"># The final second-level codes for this tweet.</span>
+            <span class="n">second_final</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">if</span> <span class="n">first_final</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip_second_code</span><span class="p">:</span>
+                <span class="c"># For each of the second level codes...</span>
+                <span class="k">for</span> <span class="n">code</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">second_codes</span><span class="p">:</span>
+                    <span class="c"># If only one person marked a second level code...</span>
+                    <span class="k">if</span> <span class="n">code_counts</span><span class="p">[</span><span class="n">code</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="c"># Mark tweet for adjudication.</span>
+                        <span class="n">second_final</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;Adjudicate&#39;</span><span class="p">]</span>
+                        <span class="k">break</span>
+                    <span class="c"># If more than half marked this code...</span>
+                    <span class="k">elif</span> <span class="nb">float</span><span class="p">(</span><span class="n">code_counts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">coders_per_tweet</span> <span class="o">&gt;</span> <span class="o">.</span><span class="mi">5</span><span class="p">:</span>
+                        <span class="c"># Add this code to the final codes for the tweet.</span>
+                        <span class="n">second_final</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+
+            <span class="c">#                               #</span>
+            <span class="c"># -------- Write Codes -------- #</span>
+            <span class="c">#                               #</span>
+            <span class="c"># Update the database with the auto-adjudicated codes.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">code_comparison</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="p">{</span><span class="s">&#39;db_id&#39;</span><span class="p">:</span> <span class="n">tweet</span><span class="p">[</span><span class="s">&#39;db_id&#39;</span><span class="p">]},</span>
+                <span class="p">{</span><span class="s">&#39;$set&#39;</span><span class="p">:</span>
+                 <span class="p">{</span>
+                     <span class="s">&#39;first_final&#39;</span><span class="p">:</span> <span class="n">first_final</span><span class="p">,</span>
+                     <span class="s">&#39;second_final&#39;</span><span class="p">:</span> <span class="n">second_final</span>
+                 <span class="p">}</span>
+                 <span class="p">}</span>
+            <span class="p">)</span>
+        <span class="c"># Record that the rumor has been auto-adjudicated.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__update_rumor_status__</span><span class="p">(</span><span class="s">&#39;auto_adjudicated&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__delegate_adjudication__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">adjudication_level</span> <span class="o">==</span> <span class="s">&#39;first&#39;</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;$and&#39;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span><span class="s">&#39;first_final&#39;</span><span class="p">:</span> <span class="s">&#39;Adjudicate&#39;</span><span class="p">},</span>
+                <span class="p">{</span><span class="s">&#39;$not&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;second_final&#39;</span><span class="p">:</span> <span class="s">&#39;Adjudicate&#39;</span><span class="p">}}</span>
+            <span class="p">]}</span>
+            <span class="n">export_cols</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">export_cols</span> <span class="o">+</span> \
+                <span class="p">[</span><span class="s">&#39;first_level_codes&#39;</span><span class="p">,</span> <span class="s">&#39;second_level_codes&#39;</span><span class="p">]</span>
+            <span class="n">export_cols</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s">&#39;tweet_id&#39;</span><span class="p">)</span>
+            <span class="n">suffix</span> <span class="o">=</span> <span class="s">&#39;_level1.csv&#39;</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">adjudication_level</span> <span class="o">==</span> <span class="s">&#39;both&#39;</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;first_final&#39;</span><span class="p">:</span> <span class="s">&#39;Adjudicate&#39;</span><span class="p">,</span>
+                     <span class="s">&#39;second_final&#39;</span><span class="p">:</span> <span class="s">&#39;Adjudicate&#39;</span><span class="p">}</span>
+            <span class="n">export_cols</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">export_cols</span> <span class="o">+</span> \
+                <span class="p">[</span><span class="s">&#39;first_level_codes&#39;</span><span class="p">,</span> <span class="s">&#39;second_level_codes&#39;</span><span class="p">]</span>
+            <span class="n">export_cols</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s">&#39;tweet_id&#39;</span><span class="p">)</span>
+            <span class="n">suffix</span> <span class="o">=</span> <span class="s">&#39;_both.csv&#39;</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">adjudication_level</span> <span class="o">==</span> <span class="s">&#39;second&#39;</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;$and&#39;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span><span class="s">&#39;second_final&#39;</span><span class="p">:</span> <span class="s">&#39;Adjudicate&#39;</span><span class="p">},</span>
+                <span class="p">{</span><span class="s">&#39;$not&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;first_final&#39;</span><span class="p">:</span> <span class="s">&#39;Adjudicate&#39;</span><span class="p">}}</span>
+            <span class="p">]}</span>
+            <span class="n">export_cols</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">export_cols</span> <span class="o">+</span> \
+                <span class="p">[</span><span class="s">&#39;final_codes&#39;</span><span class="p">,</span> <span class="s">&#39;second_level_codes&#39;</span><span class="p">]</span>
+            <span class="n">export_cols</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s">&#39;tweet_id&#39;</span><span class="p">)</span>
+            <span class="n">suffix</span> <span class="o">=</span> <span class="s">&#39;_level2.csv&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s">&#39;Unexpected adjudication_level value: &#39;</span> <span class="o">+</span>
+                <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">adjudication_level</span><span class="p">))</span>
+
+        <span class="n">tweets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">code_comparison</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">num_tweets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">code_comparison</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">query</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">num_tweets</span><span class="p">)</span>
+
+        <span class="c"># The loads for each adjudicator for this level.</span>
+        <span class="n">loads</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">count</span> <span class="o">*</span> <span class="n">v</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+                 <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">adjudicators</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()}</span>
+
+        <span class="c"># Make a dict of {adjudicator_name: exporter}</span>
+        <span class="n">sheets</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">adj_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">adjudicators</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="c"># Create an exporter object for the coder.</span>
+            <span class="n">exporter</span> <span class="o">=</span> <span class="n">TweetExporter</span><span class="p">(</span>
+                <span class="n">args</span><span class="o">.</span><span class="n">directory</span> <span class="o">+</span> <span class="s">&#39;/&#39;</span> <span class="o">+</span> <span class="n">adj_name</span> <span class="o">+</span> <span class="n">suffix</span><span class="p">,</span>
+                <span class="n">export_cols</span><span class="p">,</span>
+                <span class="n">args</span><span class="o">.</span><span class="n">aux_cols</span><span class="p">,</span>
+                <span class="n">args</span><span class="o">.</span><span class="n">col_order</span>
+            <span class="p">)</span>
+            <span class="n">sheets</span><span class="p">[</span><span class="n">adj_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">exporter</span>
+
+        <span class="k">for</span> <span class="n">tweet</span> <span class="ow">in</span> <span class="n">tweets</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">loads</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s">&#39;Ran out of adjudicators while delegating.&#39;</span>
+                <span class="p">)</span>
+            <span class="c"># Choose a random adjudicator.</span>
+            <span class="n">cur_adj</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">loads</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="c"># Write the tweet to thier sheet.</span>
+            <span class="n">sheets</span><span class="p">[</span><span class="n">cur_adj</span><span class="p">]</span><span class="o">.</span><span class="n">export_tweet</span><span class="p">(</span><span class="n">tweet</span><span class="p">)</span>
+            <span class="c"># Decrement thier load.</span>
+            <span class="n">loads</span><span class="p">[</span><span class="n">cur_adj</span><span class="p">]</span> <span class="o">-=</span> <span class="mi">1</span>
+
+            <span class="c"># Stop assigning them tweets if</span>
+            <span class="c"># they&#39;ve reached capacity.</span>
+            <span class="k">if</span> <span class="n">loads</span><span class="p">[</span><span class="n">cur_adj</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">del</span> <span class="n">loads</span><span class="p">[</span><span class="n">cur_adj</span><span class="p">]</span>
+                <span class="k">del</span> <span class="n">sheets</span><span class="p">[</span><span class="n">cur_adj</span><span class="p">]</span>
+
+<div class="viewcode-block" id="TweetManager.generate_adjudication"><a class="viewcode-back" href="../../../dstk.management.html#dstk.management.TweetManager.TweetManager.generate_adjudication">[docs]</a>    <span class="k">def</span> <span class="nf">generate_adjudication</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Imports codes into the database, performs auto-adjudication</span>
+<span class="sd">        and then outputs adjudication sheets.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__upload_all__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__update_rumor_status__</span><span class="p">(</span><span class="s">&#39;coding_uploaded&#39;</span><span class="p">)</span>
+
+        <span class="c"># Auto adjudicate the rumor if it hasn&#39;t been already.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">status_log</span><span class="p">[</span><span class="s">&#39;auto_adjudicated&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__auto_adjudicate__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__delegate_adjudication__</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__update_rumor_status__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">adj_meta_prefix</span> <span class="o">+</span> <span class="s">&#39;_assigned&#39;</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">__upload_adjudication__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">db_id</span><span class="p">,</span> <span class="n">codes</span><span class="p">):</span>
+
+        <span class="c"># Create our update object.</span>
+        <span class="c"># (Adding a field to mark that the tweet was</span>
+        <span class="c">#  adjudicated.)</span>
+        <span class="n">update</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;$set&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;adjudicated&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">}}</span>
+
+        <span class="c"># If there is a first code to update...</span>
+        <span class="k">if</span> <span class="n">codes</span><span class="p">[</span><span class="s">&#39;first_level&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">update</span><span class="p">[</span><span class="s">&#39;$set&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;first_final&#39;</span><span class="p">:</span> <span class="n">codes</span><span class="p">[</span><span class="s">&#39;first_level&#39;</span><span class="p">]})</span>
+
+        <span class="c"># If there are second level codes to update...</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">codes</span><span class="p">[</span><span class="s">&#39;second_level&#39;</span><span class="p">]):</span>
+            <span class="c"># Remove the adjudicate code.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">code_comparison</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="p">{</span><span class="s">&#39;db_id&#39;</span><span class="p">:</span> <span class="n">db_id</span><span class="p">},</span>
+                <span class="p">{</span><span class="s">&#39;$pull&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;second_final&#39;</span><span class="p">:</span> <span class="s">&#39;Adjudicate&#39;</span><span class="p">}},</span>
+                <span class="n">upsert</span><span class="o">=</span><span class="bp">True</span>
+            <span class="p">)</span>
+
+            <span class="c"># Add an operation to our update to add the new</span>
+            <span class="c"># second level codes.</span>
+            <span class="n">update</span><span class="p">[</span><span class="s">&#39;$addToSet&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s">&#39;second_final&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;$each&#39;</span><span class="p">:</span> <span class="n">codes</span><span class="p">[</span><span class="s">&#39;second_level&#39;</span><span class="p">]}</span>
+            <span class="p">}</span>
+        <span class="c"># If the tweet was marked as having no second level code.</span>
+        <span class="k">elif</span> <span class="n">codes</span><span class="p">[</span><span class="s">&#39;no_second_code&#39;</span><span class="p">]:</span>
+            <span class="c"># Remove the adjudicate code.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">code_comparison</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="p">{</span><span class="s">&#39;db_id&#39;</span><span class="p">:</span> <span class="n">db_id</span><span class="p">},</span>
+                <span class="p">{</span><span class="s">&#39;$pull&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;second_final&#39;</span><span class="p">:</span> <span class="s">&#39;Adjudicate&#39;</span><span class="p">}},</span>
+                <span class="n">upsert</span><span class="o">=</span><span class="bp">True</span>
+            <span class="p">)</span>
+
+        <span class="c"># Insert the codes into the database.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">code_comparison</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="p">{</span><span class="s">&#39;db_id&#39;</span><span class="p">:</span> <span class="n">db_id</span><span class="p">},</span>
+            <span class="n">update</span><span class="p">,</span>
+            <span class="n">upsert</span><span class="o">=</span><span class="bp">True</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__upload_codes__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">db_id</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">codes</span><span class="p">,</span> <span class="n">coder</span><span class="p">):</span>
+        <span class="c"># Create the upload_codes object.</span>
+        <span class="n">upload_codes</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&#39;coder_id&#39;</span><span class="p">:</span> <span class="n">coder</span><span class="p">[</span><span class="s">&#39;coder_id&#39;</span><span class="p">],</span>
+            <span class="s">&#39;first&#39;</span><span class="p">:</span> <span class="n">codes</span><span class="p">[</span><span class="s">&#39;first_level&#39;</span><span class="p">],</span>
+            <span class="n">codes</span><span class="p">[</span><span class="s">&#39;first_level&#39;</span><span class="p">]:</span> <span class="mi">1</span>
+        <span class="p">}</span>
+
+        <span class="c"># Format the second level codes:</span>
+        <span class="n">second_level</span> <span class="o">=</span> <span class="p">{</span><span class="n">c</span><span class="p">:</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">codes</span><span class="p">[</span><span class="s">&#39;second_level&#39;</span><span class="p">]}</span>
+
+        <span class="c"># Add the second level codes into the dictionary.</span>
+        <span class="n">upload_codes</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">second_level</span><span class="p">)</span>
+
+        <span class="c"># Insert the codes into the database.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">code_comparison</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="p">{</span><span class="s">&#39;db_id&#39;</span><span class="p">:</span> <span class="n">db_id</span><span class="p">},</span>
+            <span class="p">{</span>
+                <span class="s">&#39;$setOnInsert&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;text&#39;</span><span class="p">:</span> <span class="n">text</span><span class="p">},</span>
+                <span class="s">&#39;$addToSet&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;codes&#39;</span><span class="p">:</span> <span class="n">upload_codes</span><span class="p">}</span>
+            <span class="p">},</span>
+            <span class="n">upsert</span><span class="o">=</span><span class="bp">True</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="TweetManager.__handle_sheet__"><a class="viewcode-back" href="../../../dstk.management.html#dstk.management.TweetManager.TweetManager.__handle_sheet__">[docs]</a>    <span class="k">def</span> <span class="nf">__handle_sheet__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">coder</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Handles reading in one csv sheet.</span>
+<span class="sd">        (Handles both coding-sheets and adjudication-sheets.)</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            path (str): A filepath to the codesheet to be read.</span>
+<span class="sd">            coder (coder_object): A coder object returned by __get_db_coder__()</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Read the code sheet.</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">codesheet</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">DictReader</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+            <span class="c"># For each tweet on the sheet...</span>
+            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">codesheet</span><span class="p">:</span>
+                <span class="c"># Read the tweet information.</span>
+                <span class="n">db_id</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s">&#39;db_id&#39;</span><span class="p">]</span>
+                <span class="n">text</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s">&#39;text&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s">&#39;latin-1&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">)</span>
+
+                <span class="c"># Read the codes.</span>
+                <span class="n">codes</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;first_level&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span> <span class="s">&#39;second_level&#39;</span><span class="p">:</span> <span class="p">[]}</span>
+                <span class="k">for</span> <span class="n">col_name</span> <span class="ow">in</span> <span class="n">row</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="c"># If the column contains a value...</span>
+                    <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="n">col_name</span><span class="p">]:</span>
+                        <span class="k">if</span> <span class="n">col_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">first_codes</span><span class="p">:</span>
+                            <span class="n">codes</span><span class="p">[</span><span class="s">&#39;first_level&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">col_name</span>
+                        <span class="k">elif</span> <span class="n">col_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">second_codes</span><span class="p">:</span>
+                            <span class="n">codes</span><span class="p">[</span><span class="s">&#39;second_level&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">col_name</span><span class="p">)</span>
+                        <span class="k">elif</span> <span class="n">col_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&#39;no_second_code&#39;</span><span class="p">:</span>
+                            <span class="n">codes</span><span class="p">[</span><span class="s">&#39;no_second_code&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="k">if</span> <span class="n">db_id</span><span class="p">:</span>
+                    <span class="c"># Handle the reading of the sheet depending on action.</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s">&#39;generate_adjudication&#39;</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">__upload_codes__</span><span class="p">(</span><span class="n">db_id</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">codes</span><span class="p">,</span> <span class="n">coder</span><span class="p">)</span>
+
+                    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">action</span> <span class="o">==</span> <span class="s">&#39;upload_adjudication&#39;</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">__upload_adjudication__</span><span class="p">(</span><span class="n">db_id</span><span class="p">,</span> <span class="n">codes</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TweetManager.propagate_codes"><a class="viewcode-back" href="../../../dstk.management.html#dstk.management.TweetManager.TweetManager.propagate_codes">[docs]</a>    <span class="k">def</span> <span class="nf">propagate_codes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="c"># Find all of the non adjudicated codes.</span>
+        <span class="n">coded_uniques</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">code_comparison</span><span class="o">.</span><span class="n">find</span><span class="p">(</span>
+            <span class="p">{</span><span class="s">&#39;$or&#39;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span><span class="s">&#39;first_final&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;$not&#39;</span><span class="p">:</span> <span class="s">&#39;Adjudicate&#39;</span><span class="p">}},</span>
+                <span class="p">{</span><span class="s">&#39;second_final&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;$not&#39;</span><span class="p">:</span> <span class="s">&#39;Adjudicate&#39;</span><span class="p">}}</span>
+            <span class="p">]}</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">coded_uniques</span><span class="p">:</span>
+            <span class="c"># Get the final codes for the tweet.</span>
+            <span class="n">first_code</span> <span class="o">=</span> <span class="n">u</span><span class="p">[</span><span class="s">&#39;first_final&#39;</span><span class="p">]</span>
+            <span class="n">second_codes</span> <span class="o">=</span> <span class="n">u</span><span class="p">[</span><span class="s">&#39;second_final&#39;</span><span class="p">]</span>
+
+            <span class="n">compression_mapping</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rumor_compression</span><span class="o">.</span><span class="n">find</span><span class="p">(</span>
+                <span class="p">{</span><span class="s">&#39;db_id&#39;</span><span class="p">:</span> <span class="n">u</span><span class="p">[</span><span class="s">&#39;db_id&#39;</span><span class="p">]}</span>
+            <span class="p">)</span>
+            <span class="c"># Pull the tweet out of the iterator.</span>
+            <span class="n">compression_mapping</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">compression_mapping</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="c"># Get the list of tweets which are mapped to this tweet.</span>
+            <span class="n">duplicate_ids</span> <span class="o">=</span> <span class="n">compression_mapping</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span>
+            <span class="c"># Propagate the codes.</span>
+
+            <span class="c">###################################</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rumor_collection</span><span class="o">.</span><span class="n">update</span><span class="p">({})</span>
+</div>
+<div class="viewcode-block" id="TweetManager.upload_adjudication"><a class="viewcode-back" href="../../../dstk.management.html#dstk.management.TweetManager.TweetManager.upload_adjudication">[docs]</a>    <span class="k">def</span> <span class="nf">upload_adjudication</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        FUNCTION:</span>
+<span class="sd">            Uploads adjudicated tweets to the database.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__upload_all__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__update_rumor_status__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">adj_meta_prefix</span> <span class="o">+</span> <span class="s">&#39;_uploaded&#39;</span><span class="p">)</span>
+
+
+<span class="c"># !!!WIP!!!</span></div></div>
+<div class="viewcode-block" id="validate_args"><a class="viewcode-back" href="../../../dstk.management.html#dstk.management.TweetManager.validate_args">[docs]</a><span class="k">def</span> <span class="nf">validate_args</span><span class="p">(</span><span class="n">action</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+    <span class="c"># A list of required arguments for each action.</span>
+    <span class="n">mappings</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s">&#39;compress&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s">&#39;generate_training&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s">&#39;sample_size&#39;</span><span class="p">,</span> <span class="s">&#39;edit_distance&#39;</span><span class="p">],</span>
+        <span class="s">&#39;generate_coding&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s">&#39;coders&#39;</span><span class="p">,</span> <span class="s">&#39;assignment_sheet&#39;</span><span class="p">]</span>
+    <span class="p">}</span>
+    <span class="n">arg_vals</span> <span class="o">=</span> <span class="nb">vars</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+
+    <span class="c"># Verify that a valid action was passed.</span>
+    <span class="k">if</span> <span class="n">action</span> <span class="ow">in</span> <span class="n">mappings</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">req</span> <span class="ow">in</span> <span class="n">mappings</span><span class="p">[</span><span class="n">action</span><span class="p">]:</span>
+            <span class="c"># If any of the required args we not passed.</span>
+            <span class="k">if</span> <span class="n">req</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">arg_vals</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">return</span> <span class="bp">False</span>
+        <span class="k">return</span> <span class="bp">True</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;Invalid action specified: &#39;</span> <span class="o">+</span> <span class="n">action</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Logan Walls, Jim Maddock, Ahmer Arif.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.6</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>dstk.analysis.ReportGenerator &mdash; Data Science Toolkit 2.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '2.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="Data Science Toolkit 2.0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for dstk.analysis.ReportGenerator</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">from</span> <span class="nn">dstk.database</span> <span class="kn">import</span> <span class="n">utils</span>
+<span class="kn">from</span> <span class="nn">agreement.kappa</span> <span class="kn">import</span> <span class="n">kappa</span>
+
+<div class="viewcode-block" id="Page"><a class="viewcode-back" href="../../../dstk.analysis.html#dstk.analysis.ReportGenerator.Page">[docs]</a><span class="k">class</span> <span class="nc">Page</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layout</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span> <span class="o">=</span> <span class="n">layout</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">figures</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c"># {figure_title: {data_type:&#39;&#39;, data_value:&#39;&#39;}}</span>
+
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">figures</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">figures</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+</div>
+<div class="viewcode-block" id="ReportGenerator"><a class="viewcode-back" href="../../../dstk.analysis.html#dstk.analysis.ReportGenerator.ReportGenerator">[docs]</a><span class="k">class</span> <span class="nc">ReportGenerator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="c"># name of the event&#39;s db</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">event</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">db_name</span>
+
+        <span class="c"># name of the rumor to work with</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rumor</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">rumor_name</span>
+
+        <span class="c"># db containing all event tweets</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">db</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">mongo_connect</span><span class="p">(</span><span class="n">db_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">event</span><span class="p">)</span>
+
+        <span class="c"># db for mapping unique tweets to non-uniques</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">compression</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">mongo_connect</span><span class="p">(</span><span class="n">db_name</span><span class="o">=</span><span class="s">&#39;rumor_compression&#39;</span><span class="p">,</span>
+                                               <span class="n">collection_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rumor</span><span class="p">)</span>
+
+        <span class="c"># first level codes (pick 1, mutually exclusive)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">first_codes</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">first_level_codes</span>
+        <span class="c"># second level codes (choose any)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">second_codes</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">second_level_codes</span>
+
+
+<div class="viewcode-block" id="ReportGenerator.agreement"><a class="viewcode-back" href="../../../dstk.analysis.html#dstk.analysis.ReportGenerator.ReportGenerator.agreement">[docs]</a>    <span class="k">def</span> <span class="nf">agreement</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metric</span><span class="o">=</span><span class="s">&#39;kappa&#39;</span><span class="p">):</span>
+        <span class="c"># db containing codes for a given rumor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">code_comparison</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">mongo_connect</span><span class="p">(</span><span class="n">db_name</span><span class="o">=</span><span class="s">&#39;code_comparison&#39;</span><span class="p">,</span>
+                                            <span class="n">collection_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rumor</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">metric</span> <span class="o">==</span> <span class="s">&#39;kappa&#39;</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__kappa__</span><span class="p">()</span>
+            <span class="k">print</span> <span class="n">result</span>
+
+    <span class="c"># Right now only supports first-level codes.</span></div>
+    <span class="k">def</span> <span class="nf">__kappa__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">matrix</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="n">tweets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">code_comparison</span><span class="o">.</span><span class="n">find</span><span class="p">({},{</span><span class="s">&#39;codes&#39;</span><span class="p">:</span><span class="mi">1</span><span class="p">})</span>
+        <span class="k">for</span> <span class="n">tweet</span> <span class="ow">in</span> <span class="n">tweets</span><span class="p">:</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">first_codes</span><span class="p">)</span>
+            <span class="c"># The codes assigned to this tweet.</span>
+            <span class="n">tweet_codes</span> <span class="o">=</span> <span class="n">tweet</span><span class="p">[</span><span class="s">&#39;codes&#39;</span><span class="p">]</span>
+            
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">poss_code</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">first_codes</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">code_set</span> <span class="ow">in</span> <span class="n">tweet_codes</span><span class="p">:</span>
+                    <span class="n">row</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">code_set</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">poss_code</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            
+            <span class="n">matrix</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+
+        <span class="n">k</span> <span class="o">=</span> <span class="n">kappa</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">k</span>
+
+
+    <span class="c"># Returns a dictionary mapping coder_ids to coder names:</span>
+    <span class="c">#    {coder_id: coder_name}</span>
+    <span class="k">def</span> <span class="nf">__get_coder_names__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">coders</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">mongo_connect</span><span class="p">(</span><span class="n">db_name</span><span class="o">=</span><span class="s">&#39;coders&#39;</span><span class="p">,</span>
+                                            <span class="n">collection_name</span><span class="o">=</span><span class="s">&#39;coders&#39;</span><span class="p">)</span>
+        <span class="n">entries</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">find</span><span class="p">({})</span>
+        <span class="n">id_to_name</span> <span class="o">=</span> <span class="p">{</span><span class="n">e</span><span class="p">[</span><span class="s">&#39;coder_id&#39;</span><span class="p">]:</span><span class="n">e</span><span class="p">[</span><span class="s">&#39;name&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">id_to_name</span>
+
+<div class="viewcode-block" id="ReportGenerator.add_to_report"><a class="viewcode-back" href="../../../dstk.analysis.html#dstk.analysis.ReportGenerator.ReportGenerator.add_to_report">[docs]</a>    <span class="k">def</span> <span class="nf">add_to_report</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+        <span class="k">pass</span>
+</div></div>
+<div class="viewcode-block" id="main"><a class="viewcode-back" href="../../../dstk.analysis.html#dstk.analysis.ReportGenerator.main">[docs]</a><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="n">rg</span> <span class="o">=</span> <span class="n">ReportGenerator</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    <span class="n">report_items</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">report_items</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">report_items</span><span class="p">:</span>
+        <span class="n">calculation</span> <span class="o">=</span> <span class="n">rg</span><span class="o">.</span><span class="n">__getattribute__</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">calculation</span><span class="p">()</span>
+        <span class="n">rg</span><span class="o">.</span><span class="n">add_to_report</span><span class="p">(</span><span class="s">&quot;Fleiss&#39; Kappa&quot;</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span>
+
+    <span class="c">#Visualize/export the report.</span>
+
+    <span class="nb">exit</span><span class="p">()</span>
+
+</div>
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span>
+        <span class="n">description</span><span class="o">=</span><span class="s">&#39;Generates reports about data.&#39;</span><span class="p">)</span>
+
+    <span class="c"># General Args.</span>
+    <span class="n">general</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">add_argument_group</span><span class="p">(</span><span class="s">&#39;General&#39;</span><span class="p">)</span>
+    <span class="n">general</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s">&#39;db_name&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">&#39;The name of the database to use.&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
+    <span class="n">general</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s">&#39;rumor_name&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">&#39;The name of the rumor to use.&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
+    <span class="n">general</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s">&#39;-ri&#39;</span><span class="p">,</span> <span class="s">&#39;--report_items&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">&#39;What type of report to generate.&#39;</span><span class="p">,</span>
+        <span class="n">choices</span><span class="o">=</span><span class="p">[</span>
+            <span class="s">&#39;agreement&#39;</span>
+        <span class="p">],</span> <span class="n">nargs</span><span class="o">=</span><span class="s">&#39;*&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
+    <span class="n">general</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s">&#39;-p&#39;</span><span class="p">,</span> <span class="s">&#39;--export_path&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">&#39;File path to use for export.&#39;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s">&#39;../IO/REPORTS/sample.csv&#39;</span><span class="p">)</span>
+    <span class="n">general</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s">&#39;-flc&#39;</span><span class="p">,</span> <span class="s">&#39;--first_level_codes&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">&#39;Mutually exclusive codes.&#39;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+        <span class="n">nargs</span><span class="o">=</span><span class="s">&#39;*&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="p">[</span>
+            <span class="s">&#39;Uncodable&#39;</span><span class="p">,</span>
+            <span class="s">&#39;Unrelated&#39;</span><span class="p">,</span>
+            <span class="s">&#39;Affirm&#39;</span><span class="p">,</span>
+            <span class="s">&#39;Deny&#39;</span><span class="p">,</span>
+            <span class="s">&#39;Neutral&#39;</span><span class="p">]</span>
+    <span class="p">)</span>
+    <span class="n">general</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s">&#39;-slc&#39;</span><span class="p">,</span> <span class="s">&#39;--second_level_codes&#39;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s">&#39;Secondary codes (non-mutually exclusive)&#39;</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+        <span class="n">nargs</span><span class="o">=</span><span class="s">&#39;*&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="p">[</span><span class="s">&#39;Uncertainty&#39;</span><span class="p">,</span> <span class="s">&#39;Ambiguity&#39;</span><span class="p">,</span> <span class="s">&#39;Implicit&#39;</span><span class="p">])</span>
+
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+    <span class="n">main</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Logan Walls, Jim Maddock, Ahmer Arif.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.6</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

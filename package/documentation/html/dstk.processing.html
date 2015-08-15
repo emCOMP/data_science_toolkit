@@ -1,0 +1,361 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>dstk.processing package &mdash; Data Science Toolkit 2.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '2.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Data Science Toolkit 2.0 documentation" href="index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="dstk-processing-package">
+<h1>dstk.processing package<a class="headerlink" href="#dstk-processing-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-dstk.processing.TweetCleaner">
+<span id="dstk-processing-tweetcleaner-module"></span><h2>dstk.processing.TweetCleaner module<a class="headerlink" href="#module-dstk.processing.TweetCleaner" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="dstk.processing.TweetCleaner.TweetCleaner">
+<em class="property">class </em><code class="descclassname">dstk.processing.TweetCleaner.</code><code class="descname">TweetCleaner</code><span class="sig-paren">(</span><em>all_ops=None</em>, <em>user_settings={}</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetCleaner.html#TweetCleaner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetCleaner.TweetCleaner" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Processes tweet text using a set of specified operations.</p>
+<dl class="docutils">
+<dt>NOTE:   All ops is applied before user_settings, so</dt>
+<dd>it is possible to combine the two.</dd>
+<dt>Ex:     Passing (all_ops=False, user_settings={&#8216;lowercase&#8217;: True})</dt>
+<dd>will apply only the lowercase op.</dd>
+</dl>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>all_ops</strong> (<em>bool</em>) &#8211; If this is passed, the default settings will
+be overridden with the value passed.
+Ex. If True is passed all ops will be set to True.</li>
+<li><strong>user_settings</strong> (<em>{str: bool}</em>) &#8211; Keys are cleaning operations,
+values are bools:
+Ops which are &#8216;True&#8217; will be applied
+to each tweet.
+Ops which are &#8216;False&#8217; willl not.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="dstk.processing.TweetCleaner.TweetCleaner.__op_setup__">
+<code class="descname">__op_setup__</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetCleaner.html#TweetCleaner.__op_setup__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetCleaner.TweetCleaner.__op_setup__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provides any op-specific setup required for ops.
+(Eg. importing new libraries, constructing other objects, etc.)</p>
+<dl class="docutils">
+<dt>Put any op-specific setup operations here.</dt>
+<dd><p class="first">Wrap them in an if statement like so:</p>
+<blockquote class="last">
+<div><dl class="docutils">
+<dt>if self.settings[&lt;op_name&gt;]:</dt>
+<dd>&lt;op-specific setup here&gt;</dd>
+</dl>
+</div></blockquote>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="dstk.processing.TweetCleaner.TweetCleaner.clean">
+<code class="descname">clean</code><span class="sig-paren">(</span><em>text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetCleaner.html#TweetCleaner.clean"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetCleaner.TweetCleaner.clean" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies all of the instance&#8217;s enabled ops to the
+string passed in as &#8216;text&#8217;.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>text</strong> (<em>str</em>) &#8211; The tweet text to be cleaned.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">The resulting string after all enabled ops
+are applied to &#8216;text&#8217;.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">(str)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="dstk.processing.TweetCleaner.TweetCleaner.lowercase">
+<code class="descname">lowercase</code><span class="sig-paren">(</span><em>text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetCleaner.html#TweetCleaner.lowercase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetCleaner.TweetCleaner.lowercase" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="dstk.processing.TweetCleaner.TweetCleaner.remove_stopwords">
+<code class="descname">remove_stopwords</code><span class="sig-paren">(</span><em>text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetCleaner.html#TweetCleaner.remove_stopwords"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetCleaner.TweetCleaner.remove_stopwords" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="dstk.processing.TweetCleaner.TweetCleaner.scrub_hashtags">
+<code class="descname">scrub_hashtags</code><span class="sig-paren">(</span><em>text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetCleaner.html#TweetCleaner.scrub_hashtags"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetCleaner.TweetCleaner.scrub_hashtags" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="dstk.processing.TweetCleaner.TweetCleaner.scrub_mentions">
+<code class="descname">scrub_mentions</code><span class="sig-paren">(</span><em>text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetCleaner.html#TweetCleaner.scrub_mentions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetCleaner.TweetCleaner.scrub_mentions" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="dstk.processing.TweetCleaner.TweetCleaner.scrub_newlines">
+<code class="descname">scrub_newlines</code><span class="sig-paren">(</span><em>text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetCleaner.html#TweetCleaner.scrub_newlines"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetCleaner.TweetCleaner.scrub_newlines" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="dstk.processing.TweetCleaner.TweetCleaner.scrub_non_ascii">
+<code class="descname">scrub_non_ascii</code><span class="sig-paren">(</span><em>text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetCleaner.html#TweetCleaner.scrub_non_ascii"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetCleaner.TweetCleaner.scrub_non_ascii" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="dstk.processing.TweetCleaner.TweetCleaner.scrub_punctuation">
+<code class="descname">scrub_punctuation</code><span class="sig-paren">(</span><em>text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetCleaner.html#TweetCleaner.scrub_punctuation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetCleaner.TweetCleaner.scrub_punctuation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="dstk.processing.TweetCleaner.TweetCleaner.scrub_quotes">
+<code class="descname">scrub_quotes</code><span class="sig-paren">(</span><em>text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetCleaner.html#TweetCleaner.scrub_quotes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetCleaner.TweetCleaner.scrub_quotes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="dstk.processing.TweetCleaner.TweetCleaner.scrub_retweet_text">
+<code class="descname">scrub_retweet_text</code><span class="sig-paren">(</span><em>text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetCleaner.html#TweetCleaner.scrub_retweet_text"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetCleaner.TweetCleaner.scrub_retweet_text" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="dstk.processing.TweetCleaner.TweetCleaner.scrub_url">
+<code class="descname">scrub_url</code><span class="sig-paren">(</span><em>text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetCleaner.html#TweetCleaner.scrub_url"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetCleaner.TweetCleaner.scrub_url" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="dstk.processing.TweetCleaner.TweetCleaner.stem_words">
+<code class="descname">stem_words</code><span class="sig-paren">(</span><em>text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetCleaner.html#TweetCleaner.stem_words"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetCleaner.TweetCleaner.stem_words" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-dstk.processing.TweetExporter">
+<span id="dstk-processing-tweetexporter-module"></span><h2>dstk.processing.TweetExporter module<a class="headerlink" href="#module-dstk.processing.TweetExporter" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="dstk.processing.TweetExporter.TweetExporter">
+<em class="property">class </em><code class="descclassname">dstk.processing.TweetExporter.</code><code class="descname">TweetExporter</code><span class="sig-paren">(</span><em>path</em>, <em>export_cols</em>, <em>aux_cols={}</em>, <em>order_override=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetExporter.html#TweetExporter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetExporter.TweetExporter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Handles the writing of tweets to csv rows on a tweet-by-tweet
+basis.</p>
+<dl class="docutils">
+<dt>Usage:</dt>
+<dd><ol class="first last arabic">
+<li><dl class="first docutils">
+<dt>Create a TweetExporter instance, initializing it with your</dt>
+<dd><p class="first last">desired path and export settings.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>For each tweet you want to export: call the instance&#8217;s</dt>
+<dd><p class="first last">export_tweet() method, passing the tweet object as
+the argument.</p>
+</dd>
+</dl>
+</li>
+</ol>
+</dd>
+</dl>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>path</strong> (<em>str</em>) &#8211; The destination file-path to write output.</li>
+<li><strong>export_cols</strong> (<em>[str]</em>) &#8211; The columns to include in output.</li>
+<li><strong>aux_cols</strong> (<em>{str: str}</em>) &#8211; <p>Keys are extra column names, values are
+the value to write in that column.</p>
+<p>Ex. {&#8216;rumor&#8217;: &#8216;sunil&#8217;} will include
+an extra column called &#8216;rumor&#8217;
+with a value of &#8216;sunil&#8217;.</p>
+</li>
+<li><strong>order_override</strong> (<em>[str]</em>) &#8211; An ordered list of the export columns
+which will specif the order in which
+the columns are written to the file.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="dstk.processing.TweetExporter.TweetExporter.db_id">
+<code class="descname">db_id</code><span class="sig-paren">(</span><em>tweet</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetExporter.html#TweetExporter.db_id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetExporter.TweetExporter.db_id" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="dstk.processing.TweetExporter.TweetExporter.export_tweet">
+<code class="descname">export_tweet</code><span class="sig-paren">(</span><em>tweet</em>, <em>extra={}</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetExporter.html#TweetExporter.export_tweet"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetExporter.TweetExporter.export_tweet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Writes a tweet to the TweetExporter&#8217;s output file.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>&lt;dict&gt;</strong> (<em>extra</em>) &#8211; Extra non-built-in columns you want to add.
+THIS MUST BE THE SAME FOR EVERY CALL TO EXPORT TWEET
+Format: {header: value_for_this_tweet}</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="dstk.processing.TweetExporter.TweetExporter.final_codes">
+<code class="descname">final_codes</code><span class="sig-paren">(</span><em>tweet</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetExporter.html#TweetExporter.final_codes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetExporter.TweetExporter.final_codes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="dstk.processing.TweetExporter.TweetExporter.first_level_codes">
+<code class="descname">first_level_codes</code><span class="sig-paren">(</span><em>tweet</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetExporter.html#TweetExporter.first_level_codes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetExporter.TweetExporter.first_level_codes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="dstk.processing.TweetExporter.TweetExporter.get_path">
+<code class="descname">get_path</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetExporter.html#TweetExporter.get_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetExporter.TweetExporter.get_path" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">The file-path this exporter is writing to.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">(str)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="dstk.processing.TweetExporter.TweetExporter.second_level_codes">
+<code class="descname">second_level_codes</code><span class="sig-paren">(</span><em>tweet</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetExporter.html#TweetExporter.second_level_codes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetExporter.TweetExporter.second_level_codes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="dstk.processing.TweetExporter.TweetExporter.text">
+<code class="descname">text</code><span class="sig-paren">(</span><em>tweet</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetExporter.html#TweetExporter.text"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetExporter.TweetExporter.text" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="dstk.processing.TweetExporter.TweetExporter.time">
+<code class="descname">time</code><span class="sig-paren">(</span><em>tweet</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetExporter.html#TweetExporter.time"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetExporter.TweetExporter.time" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="dstk.processing.TweetExporter.TweetExporter.tweet_id">
+<code class="descname">tweet_id</code><span class="sig-paren">(</span><em>tweet</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetExporter.html#TweetExporter.tweet_id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetExporter.TweetExporter.tweet_id" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="dstk.processing.TweetExporter.test">
+<code class="descclassname">dstk.processing.TweetExporter.</code><code class="descname">test</code><span class="sig-paren">(</span><em>db</em>, <em>rumor</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/dstk/processing/TweetExporter.html#test"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#dstk.processing.TweetExporter.test" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-dstk.processing">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-dstk.processing" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">dstk.processing package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-dstk.processing.TweetCleaner">dstk.processing.TweetCleaner module</a></li>
+<li><a class="reference internal" href="#module-dstk.processing.TweetExporter">dstk.processing.TweetExporter module</a></li>
+<li><a class="reference internal" href="#module-dstk.processing">Module contents</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/dstk.processing.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Logan Walls, Jim Maddock, Ahmer Arif.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.6</a>
+      
+      |
+      <a href="_sources/dstk.processing.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

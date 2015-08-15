@@ -1,0 +1,22 @@
+dstk.analysis.users package
+===========================
+
+Submodules
+----------
+
+dstk.analysis.users.patterns module
+-----------------------------------
+
+.. automodule:: dstk.analysis.users.patterns
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: dstk.analysis.users
+    :members:
+    :undoc-members:
+    :show-inheritance:

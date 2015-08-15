@@ -1,0 +1,291 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>dstk.processing.TweetCleaner &mdash; Data Science Toolkit 2.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '2.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="Data Science Toolkit 2.0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for dstk.processing.TweetCleaner</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">nltk.corpus</span> <span class="kn">import</span> <span class="n">stopwords</span>
+<span class="kn">from</span> <span class="nn">nltk.stem.snowball</span> <span class="kn">import</span> <span class="n">EnglishStemmer</span>
+
+
+<div class="viewcode-block" id="TweetCleaner"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetCleaner.TweetCleaner">[docs]</a><span class="k">class</span> <span class="nc">TweetCleaner</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Processes tweet text using a set of specified operations.</span>
+
+<span class="sd">    NOTE:   All ops is applied before user_settings, so</span>
+<span class="sd">            it is possible to combine the two.</span>
+
+<span class="sd">    Ex:     Passing (all_ops=False, user_settings={&#39;lowercase&#39;: True})</span>
+<span class="sd">            will apply only the lowercase op.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        all_ops (bool): If this is passed, the default settings will</span>
+<span class="sd">                be overridden with the value passed.</span>
+<span class="sd">                Ex. If True is passed all ops will be set to True.</span>
+
+<span class="sd">        user_settings ({str: bool}): Keys are cleaning operations,</span>
+<span class="sd">                                    values are bools:</span>
+<span class="sd">                                    Ops which are &#39;True&#39; will be applied</span>
+<span class="sd">                                    to each tweet.</span>
+<span class="sd">                                    Ops which are &#39;False&#39; willl not.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">all_ops</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">user_settings</span><span class="o">=</span><span class="p">{}):</span>
+
+        <span class="c"># The default settings for the Cleaner.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&#39;scrub_non_ascii&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span>
+            <span class="s">&#39;scrub_url&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span>
+            <span class="s">&#39;lowercase&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span>
+            <span class="s">&#39;scrub_newlines&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span>
+            <span class="s">&#39;scrub_hashtags&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+            <span class="s">&#39;scrub_retweet_text&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span>
+            <span class="s">&#39;scrub_quotes&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span>
+            <span class="s">&#39;scrub_punctuation&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+            <span class="s">&#39;scrub_mentions&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+            <span class="s">&#39;remove_stopwords&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+            <span class="s">&#39;stem_words&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="c"># The order of this list is the order that</span>
+        <span class="c"># ops will be applied to tweets.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">op_prioirty</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s">&#39;scrub_non_ascii&#39;</span><span class="p">,</span>
+            <span class="s">&#39;scrub_url&#39;</span><span class="p">,</span>
+            <span class="s">&#39;lowercase&#39;</span><span class="p">,</span>
+            <span class="s">&#39;scrub_newlines&#39;</span><span class="p">,</span>
+            <span class="s">&#39;scrub_hashtags&#39;</span><span class="p">,</span>
+            <span class="s">&#39;scrub_retweet_text&#39;</span><span class="p">,</span>
+            <span class="s">&#39;scrub_quotes&#39;</span><span class="p">,</span>
+            <span class="s">&#39;scrub_punctuation&#39;</span><span class="p">,</span>
+            <span class="s">&#39;scrub_mentions&#39;</span><span class="p">,</span>
+            <span class="s">&#39;remove_stopwords&#39;</span><span class="p">,</span>
+            <span class="s">&#39;stem_words&#39;</span>
+        <span class="p">]</span>
+
+        <span class="c"># User-specified settings.</span>
+        <span class="k">if</span> <span class="n">all_ops</span> <span class="o">==</span> <span class="bp">True</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="bp">True</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">keys</span><span class="p">()}</span>
+        <span class="k">elif</span> <span class="n">all_ops</span> <span class="o">==</span> <span class="bp">False</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="bp">False</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">keys</span><span class="p">()}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">user_settings</span><span class="p">)</span>
+
+        <span class="c"># Find the ops we will use.</span>
+        <span class="n">enabled_ops</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span><span class="p">]</span>
+
+        <span class="c"># Get the enabled ops in order of priority.</span>
+        <span class="n">ordered_ops</span> <span class="o">=</span> <span class="p">[</span><span class="n">op</span> <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">op_prioirty</span> <span class="k">if</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">enabled_ops</span><span class="p">]</span>
+
+        <span class="c"># Map the op names to the actual op functions.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ops</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">__getattribute__</span><span class="p">(</span><span class="n">op_name</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">op_name</span> <span class="ow">in</span> <span class="n">ordered_ops</span><span class="p">]</span>
+
+        <span class="c"># Run any op specific setup.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__op_setup__</span><span class="p">()</span>
+
+<div class="viewcode-block" id="TweetCleaner.clean"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetCleaner.TweetCleaner.clean">[docs]</a>    <span class="k">def</span> <span class="nf">clean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Applies all of the instance&#39;s enabled ops to the</span>
+<span class="sd">        string passed in as &#39;text&#39;.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            text (str): The tweet text to be cleaned.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">                (str): The resulting string after all enabled ops</span>
+<span class="sd">                        are applied to &#39;text&#39;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">text</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">text</span>
+            <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ops</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">op</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">result</span>
+</div>
+<div class="viewcode-block" id="TweetCleaner.__op_setup__"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetCleaner.TweetCleaner.__op_setup__">[docs]</a>    <span class="k">def</span> <span class="nf">__op_setup__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Provides any op-specific setup required for ops.</span>
+<span class="sd">        (Eg. importing new libraries, constructing other objects, etc.)</span>
+
+<span class="sd">        Put any op-specific setup operations here.</span>
+<span class="sd">            Wrap them in an if statement like so:</span>
+
+<span class="sd">                if self.settings[&lt;op_name&gt;]:</span>
+<span class="sd">                    &lt;op-specific setup here&gt;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;stem_words&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stemmer</span> <span class="o">=</span> <span class="n">EnglishStemmer</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;remove_stopwords&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stops</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span><span class="n">stopwords</span><span class="o">.</span><span class="n">words</span><span class="p">(</span><span class="s">&quot;english&quot;</span><span class="p">))</span>
+
+<span class="c">##########################################</span>
+<span class="c">#           Define Ops Here              #</span>
+<span class="c">##########################################</span>
+
+    <span class="c"># Removes newline characters.</span></div>
+<div class="viewcode-block" id="TweetCleaner.scrub_newlines"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetCleaner.TweetCleaner.scrub_newlines">[docs]</a>    <span class="k">def</span> <span class="nf">scrub_newlines</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">text</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)</span>
+
+    <span class="c"># Casts all characters to lowercase.</span></div>
+<div class="viewcode-block" id="TweetCleaner.lowercase"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetCleaner.TweetCleaner.lowercase">[docs]</a>    <span class="k">def</span> <span class="nf">lowercase</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">text</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+
+    <span class="c"># Scrubs any unicode characters which can&#39;t be converted to ASCII.</span></div>
+<div class="viewcode-block" id="TweetCleaner.scrub_non_ascii"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetCleaner.TweetCleaner.scrub_non_ascii">[docs]</a>    <span class="k">def</span> <span class="nf">scrub_non_ascii</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">r&#39;[^\x00-\x7F]+&#39;</span><span class="p">,</span> <span class="s">u&#39;&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+
+    <span class="c"># Removes URLs</span></div>
+<div class="viewcode-block" id="TweetCleaner.scrub_url"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetCleaner.TweetCleaner.scrub_url">[docs]</a>    <span class="k">def</span> <span class="nf">scrub_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
+            <span class="s">r&#39;http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&amp;+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+&#39;</span><span class="p">,</span>
+            <span class="s">u&#39;&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="c"># Removes all types of &#39;retweet text&#39;.</span></div>
+<div class="viewcode-block" id="TweetCleaner.scrub_retweet_text"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetCleaner.TweetCleaner.scrub_retweet_text">[docs]</a>    <span class="k">def</span> <span class="nf">scrub_retweet_text</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="s">ur&#39;\u201c&#39;</span> <span class="o">+</span> <span class="s">&#39;@.*?:&#39;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">text</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&#39;RT .*?:&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&#39;&quot;@.*?:&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&#39;via @.*?:&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&#39;via @.*?</span><span class="se">\b</span><span class="s">&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&#39;@.*?</span><span class="se">\b</span><span class="s">&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="c"># Removes quotation marks.</span></div>
+<div class="viewcode-block" id="TweetCleaner.scrub_quotes"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetCleaner.TweetCleaner.scrub_quotes">[docs]</a>    <span class="k">def</span> <span class="nf">scrub_quotes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">text</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)</span>
+
+    <span class="c"># Removes puncutation.</span></div>
+<div class="viewcode-block" id="TweetCleaner.scrub_punctuation"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetCleaner.TweetCleaner.scrub_punctuation">[docs]</a>    <span class="k">def</span> <span class="nf">scrub_punctuation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">r&#39;[\.,-\/!$%\^&amp;\*;:{}=\-_`~()]&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+
+    <span class="c"># Removes user-mentions.</span>
+    <span class="c"># NOTE: This removes the entire mention, not just the @.</span></div>
+<div class="viewcode-block" id="TweetCleaner.scrub_mentions"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetCleaner.TweetCleaner.scrub_mentions">[docs]</a>    <span class="k">def</span> <span class="nf">scrub_mentions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">r&#39;@\w+&#39;</span><span class="p">,</span> <span class="s">u&#39;&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+
+    <span class="c"># Removes hashtags.</span></div>
+<div class="viewcode-block" id="TweetCleaner.scrub_hashtags"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetCleaner.TweetCleaner.scrub_hashtags">[docs]</a>    <span class="k">def</span> <span class="nf">scrub_hashtags</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">r&#39;#\w+&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+
+    <span class="c"># Stems all words in the tweet.</span>
+    <span class="c"># NOTE: Applies lowercase and scrub_punctuation</span>
+    <span class="c">#       if they are not already applied.</span></div>
+<div class="viewcode-block" id="TweetCleaner.stem_words"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetCleaner.TweetCleaner.stem_words">[docs]</a>    <span class="k">def</span> <span class="nf">stem_words</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+        <span class="c"># Cast to lower case if we have not already.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;lowercase&#39;</span><span class="p">]:</span>
+            <span class="n">text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lowercase</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+
+        <span class="c"># Scrub punctuation if we have not already.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;scrub_punctuation&#39;</span><span class="p">]:</span>
+            <span class="n">text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scrub_punctuation</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+
+        <span class="n">tmp</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="n">stemmed</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">stemmer</span><span class="o">.</span><span class="n">stem</span><span class="p">(</span><span class="n">w</span><span class="p">)</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">tmp</span><span class="p">]</span>
+        <span class="n">text</span> <span class="o">=</span> <span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">stemmed</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">text</span>
+
+    <span class="c"># Removes stopwords (are, this, the, is, etc.)</span>
+    <span class="c"># NOTE: Applies lowercase and scrub_punctuation</span>
+    <span class="c">#       if they are not already applied.</span></div>
+<div class="viewcode-block" id="TweetCleaner.remove_stopwords"><a class="viewcode-back" href="../../../dstk.processing.html#dstk.processing.TweetCleaner.TweetCleaner.remove_stopwords">[docs]</a>    <span class="k">def</span> <span class="nf">remove_stopwords</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+        <span class="c"># Cast to lower case if we have not already.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;lowercase&#39;</span><span class="p">]:</span>
+            <span class="n">text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lowercase</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+
+        <span class="c"># Scrub punctuation if we have not already.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;scrub_punctuation&#39;</span><span class="p">]:</span>
+            <span class="n">text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scrub_punctuation</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+
+        <span class="n">tmp</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="n">non_stopwords</span> <span class="o">=</span> <span class="p">[</span><span class="n">w</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">tmp</span> <span class="k">if</span> <span class="n">w</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">stops</span><span class="p">]</span>
+        <span class="n">text</span> <span class="o">=</span> <span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">non_stopwords</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">text</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Logan Walls, Jim Maddock, Ahmer Arif.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.6</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

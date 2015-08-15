@@ -1,0 +1,38 @@
+dstk.analysis package
+=====================
+
+Subpackages
+-----------
+
+.. toctree::
+
+    dstk.analysis.agreement
+    dstk.analysis.users
+
+Submodules
+----------
+
+dstk.analysis.ReportGenerator module
+------------------------------------
+
+.. automodule:: dstk.analysis.ReportGenerator
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+dstk.analysis.Visualizer module
+-------------------------------
+
+.. automodule:: dstk.analysis.Visualizer
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: dstk.analysis
+    :members:
+    :undoc-members:
+    :show-inheritance:
