@@ -336,7 +336,6 @@ class TweetManager(object):
     def __find_tweets__(self):
         query = config.rumor_terms[self.rumor]
         tweet_list = self.db.find(query)
-        print 'Locating tweets...'
         return tweet_list
 
     # Helper method for creating a list of unique tweets from a rumor
