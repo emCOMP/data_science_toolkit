@@ -69,7 +69,8 @@ class TweetManager(object):
             self.__init_adjudicate__(args)
 
     def __init_training__(self, args):
-
+        # Make sure the rumor is compressed.
+        self.__verify_compression__()
         # An exporter to handle tweet export.
         self.exporter = TweetExporter(
             args.export_path,
@@ -79,14 +80,7 @@ class TweetManager(object):
         )
 
     def __init_coding__(self, args):
-        # Check to see if we have a compression database
-        compression_exists = bool(self.compression.find_one())
-
-        # If we don't have a compression database...
-        if not compression_exists:
-            # Compress before we generate the sheet.
-            self.__compress__()
-
+        self.__verify_compression__()
         self.coders_per_tweet = args.coders_per
         tweets_to_code = self.compression.count() * self.coders_per_tweet
 
@@ -190,6 +184,15 @@ class TweetManager(object):
                 'Loads do not add up to 1. (adjudication loads are percentages)\
                 Check your math?'
             )
+
+    def __verify_compression__(self):
+        # Check to see if we have a compression database
+        compression_exists = bool(self.compression.find_one())
+
+        # If we don't have a compression database...
+        if not compression_exists:
+            # Compress before we generate the sheet.
+            self.__compress__()
 
     # Returns the status document for this rumor from the rumor_metadata
     # database. (Initializes it if there isn't one.)
@@ -401,7 +404,7 @@ class TweetManager(object):
         edit_distance = args.edit_distance
 
         # Get the whole set of tweets.
-        tweet_list = self.__find_tweets__()
+        tweet_list = self.compression.find({})
         print 'Selecting ' + str(sample_size) + ' unique tweets...'
 
         # How many tweets we have selected so far.
