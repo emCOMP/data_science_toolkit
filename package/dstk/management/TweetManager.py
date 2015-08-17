@@ -69,14 +69,11 @@ class TweetManager(object):
             self.__init_adjudicate__(args)
 
     def __init_training__(self, args):
-        # Modify the export columns.
-        export_cols = args.export_cols
-        export_cols.remove('db_id')
 
         # An exporter to handle tweet export.
         self.exporter = TweetExporter(
             args.export_path,
-            export_cols,
+            args.export_cols,
             args.aux_cols,
             args.col_order
         )
