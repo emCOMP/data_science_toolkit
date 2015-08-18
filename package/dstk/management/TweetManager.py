@@ -56,6 +56,10 @@ class TweetManager(object):
             with open(args.usernames, 'rb') as f:
                 self.tool_users = json.loads(f.read())
 
+        # These are the second-level codes for which
+        # we want to adjudicate.
+        self.second_level_adj_codes = ['Uncertainty']
+
         self.action = args.action
 
         # Run action-specific initialization.
@@ -646,13 +650,18 @@ class TweetManager(object):
             if first_final not in self.skip_second_code:
                 # For each of the second level codes...
                 for code in self.second_codes:
-                    # If only one person marked a second level code...
-                    if code_counts[code] == 1:
-                        # Mark tweet for adjudication.
-                        second_final = ['Adjudicate']
-                        break
+                    # How many people marked this code?
+                    votes = float(code_counts.get(code, 0))
+                    # Percentage of agreement.
+                    cur_code_agreement = votes / self.coders_per_tweet
+                    # If we're adjudicating this code...
+                    if code in self.second_level_adj_codes:
+                        # Check if it needs to be adjudicated.
+                        # Did a minority mark it?
+                        if 0 < cur_code_agreement < .5:
+                            second_final = ['Adjudicate']
                     # If more than half marked this code...
-                    elif float(code_counts.get(code, 0)) / self.coders_per_tweet > .5:
+                    if cur_code_agreement > .5:
                         # Add this code to the final codes for the tweet.
                         second_final.append(code)
 
