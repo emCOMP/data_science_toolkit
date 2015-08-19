@@ -870,6 +870,9 @@ class TweetManager(object):
                         self.__upload_adjudication__(db_id, codes)
 
     def propagate_codes(self, args):
+        self.code_comparison = utils.mongo_connect(
+            db_name='code_comparison',
+            collection_name=self.rumor)
         # Find all of the non adjudicated codes.
         coded_uniques = self.code_comparison.find(
             {'$or': [
