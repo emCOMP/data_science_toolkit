@@ -145,7 +145,7 @@ class TweetExporter(object):
         else:
             return str(tweet['id'])
 
-    def first_level_codes(self, tweet):
+    def first_level_code_comparison(self, tweet):
         if 'codes'in tweet.keys():
             result = []
             for container in tweet['codes']:
@@ -154,7 +154,10 @@ class TweetExporter(object):
         else:
             return ''
 
-    def second_level_codes(self, tweet):
+    def first_level_codes(self, tweet):
+        return tweet['codes'][0]['first_code']
+
+    def second_level_code_comparison(self, tweet):
         if 'codes'in tweet.keys():
             ignore = ['coder_id',
                       'first',
@@ -173,7 +176,11 @@ class TweetExporter(object):
         else:
             return ''
 
-    def final_codes(self, tweet):
+    def second_level_codes(self, tweet):
+        codes = tweet['codes'][0]['second_code']
+        return ', '.join(sorted(codes))
+
+    def final_code_comparison(self, tweet):
         result = []
         if 'first_final' in tweet:
             result.append(tweet['first_final'])
