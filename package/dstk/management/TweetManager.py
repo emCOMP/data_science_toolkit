@@ -882,17 +882,30 @@ class TweetManager(object):
             first_code = u['first_final']
             second_codes = u['second_final']
 
+            codes = {'codes': [
+                            {
+                                'second_code': second_codes,
+                                'first_code': first_code,
+                                'rumor': self.rumor
+                            }
+                        ],
+                     }
+
             compression_mapping = self.rumor_compression.find(
-                {'db_id': u['db_id']}
+                {'db_id': u['db_id']},
             )
             # Pull the tweet out of the iterator.
             compression_mapping = list(compression_mapping)[0]
             # Get the list of tweets which are mapped to this tweet.
-            duplicate_ids = compression_mapping['id']
+            duplicate_ids = map(str, compression_mapping['id'])
             # Propagate the codes.
-
-            ###################################
-            self.rumor_collection.update({})
+            query = {'id_str': {'$in': duplicate_ids}}
+            self.rumor_collection.update(
+                query,
+                {'$setOnInsert': codes},
+                upsert=False,
+                multi=True
+            )
 
     def upload_adjudication(self, args):
         """
