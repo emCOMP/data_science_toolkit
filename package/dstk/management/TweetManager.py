@@ -894,7 +894,7 @@ class TweetManager(object):
                         ],
                      }
 
-            compression_mapping = self.rumor_compression.find(
+            compression_mapping = self.compression.find(
                 {'db_id': u['db_id']},
             )
             # Pull the tweet out of the iterator.
