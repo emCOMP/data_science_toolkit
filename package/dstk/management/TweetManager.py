@@ -813,7 +813,7 @@ class TweetManager(object):
                 'second_final': {'$each': codes['second_level']}
             }
         # If the tweet was marked as having no second level code.
-        elif codes['no_second_code']:
+        elif 'no_second_code' in codes:
             # Remove the adjudicate code.
             self.code_comparison.update(
                 {'db_id': db_id},
@@ -891,6 +891,7 @@ class TweetManager(object):
                         self.__upload_adjudication__(db_id, codes)
 
     def propagate_codes(self, args):
+        print 'Propagating...'
         self.code_comparison = utils.mongo_connect(
             db_name='code_comparison',
             collection_name=self.rumor)

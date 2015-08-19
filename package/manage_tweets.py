@@ -158,8 +158,7 @@ if __name__ == '__main__':
         help='Which of the three adjudication cases to \
                 generate sheets for (first level only, \
                 both, or second level only)',
-        type=str, required=False,
-        nargs='*', choices=[
+        type=str, required=False, choices=[
             'first',
             'both',
             'second',
