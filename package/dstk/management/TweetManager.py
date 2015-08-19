@@ -876,8 +876,8 @@ class TweetManager(object):
         # Find all of the non adjudicated codes.
         coded_uniques = self.code_comparison.find(
             {'$or': [
-                {'first_final': {'$not': 'Adjudicate'}},
-                {'second_final': {'$not': 'Adjudicate'}}
+                {'first_final': {'$ne': 'Adjudicate'}},
+                {'second_final': {'$ne': 'Adjudicate'}}
             ]}
         )
         for u in coded_uniques:
