@@ -235,7 +235,7 @@ class TweetManager(object):
             # Update with the desired value.
             self.rumor_metadata.update(
                 {'metadata': 'status'},
-                {status: value},
+                {'$set': {status: value}},
                 upsert=True
             )
         else:
@@ -895,23 +895,23 @@ class TweetManager(object):
                      }
 
             compression_mapping = self.compression.find(
-                {'db_id': u['db_id']},
+                {'db_id': int(u['db_id'])},
             )
             # Pull the tweet out of the iterator.
 
-            compression_mapping = list(compression_mapping)
-            print compression_mapping
-            compression_mapping = compression_mapping[0]
+            compression_mapping = list(compression_mapping)[0]
             # Get the list of tweets which are mapped to this tweet.
             duplicate_ids = map(str, compression_mapping['id'])
             # Propagate the codes.
             query = {'id_str': {'$in': duplicate_ids}}
             self.rumor_collection.update(
                 query,
-                {'$setOnInsert': codes},
+                {'$set': codes},
                 upsert=False,
                 multi=True
             )
+        # Update the metadata
+        self.__update_rumor_status__('final_codes_propagated')
 
     def upload_adjudication(self, args):
         """
