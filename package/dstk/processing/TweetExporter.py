@@ -178,6 +178,7 @@ class TweetExporter(object):
 
     def second_level_codes(self, tweet):
         codes = tweet['codes'][0]['second_code']
+        codes = [c for c in codes if c != 'Adjudicate']
         return ', '.join(sorted(codes))
 
     def final_code_comparison(self, tweet):
