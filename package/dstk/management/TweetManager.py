@@ -3,6 +3,7 @@ import csv
 import os
 import json
 import nltk
+import re
 from dstk.database import utils
 from dstk.database import config
 from dstk.processing.TweetCleaner import TweetCleaner
@@ -359,8 +360,28 @@ class TweetManager(object):
             # Clean the text.
             text = self.cleaner.clean(tweet['text'])
 
+            truncated = re.search(r'\.\.\.$', text)
+
+            if truncated:
+                # Remove the truncated word and the elipis.
+                non_truncated_words = text.split()[:-1]
+                non_truncated_text = re.escape(' '.join(non_truncated_words))
+                # Create regex to match the non-truncated part of the text
+                # (starting from the beginning of the tweet.)
+                reg = re.compile(r'^' + non_truncated_text, re.IGNORECASE)
+                # If we do not find a match...
+                if self.compression.find_one({'text': {'$regex': reg}}) is not None:
+                    self.compression.update({'text': text},
+                        {'$addToSet': {'id': tweet['id']}})
+                else:
+                    # Add a new entry to the database.
+                    self.compression.insert({'db_id': count,
+                                             'rumor': self.rumor,
+                                             'text': text,
+                                             'id': [tweet['id']]})
+
             # If after cleaning we find an exact match in the database...
-            if self.compression.find_one({'text': text}) is not None:
+            elif self.compression.find_one({'text': text}) is not None:
                 # Add this tweet to the compression list for the match.
                 self.compression.update({'text': text},
                                         {'$addToSet': {'id': tweet['id']}})
