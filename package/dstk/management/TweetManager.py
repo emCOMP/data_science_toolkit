@@ -689,7 +689,7 @@ class TweetManager(object):
                 {'$not': {'second_final': 'Adjudicate'}}
             ]}
             export_cols = args.export_cols + \
-                ['first_level_codes', 'second_level_codes']
+                ['first_level_code_comparison', 'second_level_code_comparison']
             export_cols.remove('tweet_id')
             suffix = '_level1.csv'
         elif self.adjudication_level == 'both':
