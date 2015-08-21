@@ -1,6 +1,5 @@
 from html import HTML
 from dstk.database import utils
-from agreement.kappa import kappa
 
 
 class ReportGenerator(object):

@@ -64,6 +64,7 @@ if __name__ == '__main__':
             'compress',
             'generate_training',
             'generate_coding',
+            'upload_coding',
             'generate_adjudication',
             'upload_adjudication',
             'propagate_codes'
@@ -165,7 +166,7 @@ if __name__ == '__main__':
             ]
     )
     adjudicate.add_argument(
-        '-sd', '--sheet_dir', help='Path to input folder for \
+        '-ud', '--upload_dir', help='Path to input folder for \
                                     completed coding/adjudication sheets.',
         type=str, required=False, default='IO/IMPORT')
     adjudicate.add_argument(

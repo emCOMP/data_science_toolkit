@@ -982,15 +982,13 @@ class TweetManager(object):
                         # If after going through all of the columns there still
                         # isn't a first level code...
                         if codes['first_level'] is None:
-                            print '\n\n\nWARNING:\t\n'
-                            print 'Sheet:', path
+                            # Prompt the user to code the tweet
+                            # on the spot.
+                            print '\nSheet:', path
                             print 'Is missing a code for db_id: ', db_id
-                            print 'Abort?(Y/n):'
-                            usr_in = raw_input('>>')
-                            if usr_in == 'Y':
-                                exit()
-                        else:
-                            self.__upload_codes__(db_id, text, codes, coder)
+                            codes = self.__handle_missing_code__(text)
+
+                        self.__upload_codes__(db_id, text, codes, coder)
 
                     elif self.action == 'upload_adjudication':
                         self.__upload_adjudication__(db_id, codes)

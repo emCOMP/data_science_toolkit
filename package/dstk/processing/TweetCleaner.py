@@ -145,12 +145,12 @@ class TweetCleaner(object):
     def scrub_retweet_text(self, text):
         s = ur'\u201c' + '@.*?:'
         result = text
-        result = re.sub('RT .*?:', '', result).strip()
-        result = re.sub('"@.*?:', '', result).strip()
+        result = re.sub(r'RT .*?:', '', result).strip()
+        result = re.sub(r'"@.*?:', '', result).strip()
         result = re.sub(s, '', result).strip()
-        result = re.sub('via @.*?:', '', result).strip()
-        result = re.sub('via @.*?\b', '', result).strip()
-        result = re.sub('@.*?\b', '', result).strip()
+        result = re.sub(r'via @.*?:', '', result).strip()
+        result = re.sub(r'via @.*?\b', '', result).strip()
+        result = re.sub(r'@.*?\b', '', result).strip()
         return result
 
     # Removes quotation marks.

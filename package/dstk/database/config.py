@@ -266,6 +266,18 @@ rumor_terms = {
             }
         ]
     },
+    'hadley_test':
+    {
+        '$and':[
+            {'text':re.compile('hostage',re.IGNORECASE)},
+            {
+                '$or':[
+                    {'text':re.compile('hadley',re.IGNORECASE)},
+                    {'text':re.compile('radio host',re.IGNORECASE)}
+                ]
+            }
+        ]
+    },
     'lakemba':
     {
         '$and':[
