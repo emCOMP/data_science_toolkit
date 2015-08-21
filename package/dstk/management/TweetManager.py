@@ -11,15 +11,10 @@ from dstk.processing.TweetExporter import TweetExporter
 
 
 class TweetManager(object):
-
     """
     Manages the movement of tweets through the qualitative
     coding pipeline.
-
-    Args:
-        Coming soon...
     """
-
     def __init__(self, args):
         # name of the event's db
         self.event = args.db_name
@@ -27,6 +22,73 @@ class TweetManager(object):
         # name of the rumor to work with
         self.rumor = args.rumor_name
 
+        # the action the manager will be performing.
+        self.action = args.action
+
+        # connects to the appropriate database for the action
+        self.__connect_dbs__(self.action)
+
+        # The directory to upload files from.
+        self.upload_dir = args.upload_dir
+        self.use_tool = args.coding_tool
+        self.status_log = self.__get_status_document__()
+
+        if self.use_tool:
+            self.tool_path = args.tool_path
+            with open(args.usernames, 'rb') as f:
+                self.tool_users = json.loads(f.read())
+
+        # first level codes (pick 1, mutually exclusive)
+        self.first_codes = args.first_level_codes
+        # second level codes (choose any)
+        self.second_codes = args.second_level_codes
+
+        # These are the second-level codes for which
+        # we want to adjudicate.
+        self.second_level_adj_codes = ['Uncertainty']
+
+        # First level codes for which we want to skip assigning second
+        # level codes (unrelated/uncodable shouldn't have 2nd level codes)
+        skip_codes = args.skip_second_code
+        # Ensure the skip_codes is a subset of the first_level codes.
+        if not set(skip_codes).issubset(set(self.first_codes)):
+            raise ValueError(
+                'skip_second_code is not a subset of first_level_codes'
+            )
+        else:
+            self.skip_second_code = skip_codes
+
+        self.coders_per_tweet = args.coders_per
+        self.infer_coder_names = args.infer_coder_names
+
+        # A cleaner to clean our tweets for comparison purposes.
+        cleaner_settings = {
+            'scrub_retweet_text': True,
+            'scrub_url': True
+        }
+        self.cleaner = TweetCleaner(
+            all_ops=False, user_settings=cleaner_settings)
+
+        # Run action-specific initialization.
+        if args.action == 'generate_training':
+            self.__init_training__(args)
+        elif args.action == 'generate_coding':
+            self.__init_coding__(args)
+        elif args.action == 'generate_adjudication':
+            self.__init_adjudicate__(args)
+        elif args.action == 'upload_adjudication':
+            self.__init_adjudicate__(args)
+
+    def __connect_dbs__(self, action):
+        """
+        Connects to the appropriate databases needed
+        to complete the 'action'.
+
+        Args:
+            action (str): the name of the action which
+                          the TweetManager is going to do.
+                          (taken from args)
+        """
         # db containing all event tweets
         self.db = utils.mongo_connect(db_name=self.event)
 
@@ -41,37 +103,17 @@ class TweetManager(object):
         # db collection for the individual rumor
         self.rumor_collection = self.__create_rumor_collection__()
 
-        # A cleaner to clean our tweets for comparison purposes.
-        cleaner_settings = {
-            'scrub_retweet_text': True,
-            'scrub_url': True
-        }
-        self.cleaner = TweetCleaner(
-            all_ops=False, user_settings=cleaner_settings)
-
-        self.use_tool = args.coding_tool
-        self.status_log = self.__get_status_document__()
-
-        if self.use_tool:
-            self.tool_path = args.tool_path
-            with open(args.usernames, 'rb') as f:
-                self.tool_users = json.loads(f.read())
-
-        # These are the second-level codes for which
-        # we want to adjudicate.
-        self.second_level_adj_codes = ['Uncertainty']
-
-        self.action = args.action
-
-        # Run action-specific initialization.
-        if args.action == 'generate_training':
-            self.__init_training__(args)
-        elif args.action == 'generate_coding':
-            self.__init_coding__(args)
-        elif args.action == 'generate_adjudication':
-            self.__init_adjudicate__(args)
-        elif args.action == 'upload_adjudication':
-            self.__init_adjudicate__(args)
+        code_related_actions = ['upload_coding', 'upload_adjudication',
+                                'generate_coding', 'generate_adjudication']
+        if action in code_related_actions:
+            # db Holds all of the codes for a given set of tweets.
+            self.code_comparison = utils.mongo_connect(
+                                        db_name='code_comparison',
+                                        collection_name=self.rumor)
+            # db mapping coder names to coder ids
+            self.coders_db = utils.mongo_connect(
+                                db_name='coders',
+                                collection_name='coders')
 
     def __init_training__(self, args):
         # Make sure the rumor is compressed.
@@ -149,32 +191,6 @@ class TweetManager(object):
                 '\n Please verify the database and event names.'
             )
 
-        # DB Holds all of the codes for a given set of tweets.
-        self.code_comparison = utils.mongo_connect(
-            db_name='code_comparison',
-            collection_name=self.rumor)
-        # DB mapping coder names to coder ids
-        self.coders = utils.mongo_connect(
-            db_name='coders',
-            collection_name='coders')
-        # first level codes (pick 1, mutually exclusive)
-        self.first_codes = args.first_level_codes
-        # second level codes (choose any)
-        self.second_codes = args.second_level_codes
-
-        # Ensure the skip_codes is a subset of the first_level codes.
-        skip_codes = args.skip_second_code
-        if not set(skip_codes).issubset(set(self.first_codes)):
-            raise ValueError(
-                'skip_second_code is not a subset of first_level_codes'
-            )
-        else:
-            self.skip_second_code = skip_codes
-
-        self.coders_per_tweet = args.coders_per
-        self.sheet_dir = args.sheet_dir
-        self.infer_coder_names = args.infer_coder_names
-
         # Read the Adjudicator Assigments csv.
         with open(args.adjudicator_assignments, 'rb') as f:
             reader = csv.DictReader(f)
@@ -191,6 +207,10 @@ class TweetManager(object):
             )
 
     def __verify_compression__(self):
+        """
+        Checks to see if the rumor database has been compressed.
+        (If it has not, compresses it.)
+        """
         # Check to see if we have a compression database
         compression_exists = bool(self.compression.find_one())
 
@@ -202,6 +222,14 @@ class TweetManager(object):
     # Returns the status document for this rumor from the rumor_metadata
     # database. (Initializes it if there isn't one.)
     def __get_status_document__(self):
+        """
+        Retrives the metadata document containing the status
+        of the rumor. (Creates one if it does not exist.)
+
+        Returns:
+            (dict): The metadata document for this rumor from
+                    the rumor_metadata database.
+        """
         # Check to see if there is an existing status document.
         check = list(self.rumor_metadata.find({'metadata': 'status'}))
 
@@ -249,15 +277,15 @@ class TweetManager(object):
         if not coder_name and not coder_id:
             raise TypeError
         elif coder_name:
-            coder = self.coders.find_one({'name': coder_name})
+            coder = self.coders_db.find_one({'name': coder_name})
             if coder:
                 return coder
         elif coder_id:
-            coder = self.coders.find_one({'coder_id': coder_id})
+            coder = self.coders_db.find_one({'coder_id': coder_id})
             if coder:
                 return coder
         try:
-            coder_id = self.coders.find().sort('coder_id', -1).limit(1).next()
+            coder_id = self.coders_db.find().sort('coder_id', -1).limit(1).next()
             coder_id = coder_id['coder_id'] + 1
         except StopIteration:
             coder_id = 0
@@ -267,7 +295,7 @@ class TweetManager(object):
         if user_in == 'Y':
             coder = {'name': coder_name,
                      'coder_id': coder_id}
-            self.coders.insert(coder)
+            self.coders_db.insert(coder)
             return coder
         else:
             print 'Aborting...'
@@ -562,7 +590,12 @@ class TweetManager(object):
 
     def generate_coding(self, args):
         """
-        Exports an entire rumor to coding sheets.
+        Exports an entire rumor to coding sheets,
+        assigning each tweet to 'coders_per' coders
+        (coders_per is speficied in args). 
+        How many tweets are assigned to each coder is
+        determined by the coder_assignments.csv 
+        speficied in args.
         """
 
         print 'Gathering tweets...'
@@ -588,28 +621,24 @@ class TweetManager(object):
         self.__update_rumor_status__('coding_assigned')
 
     def __upload_all__(self):
+        """
+        Uploads all of the CSVs in the directory 'upload_dir'
+        (speficied in args) to the appropriate database.
+        """
         print 'Uploading codes from sheets...'
-
-        if self.action == 'generate_adjudication':
-            # Check if we've already imported these codes.
-            already_imported = bool(self.code_comparison.find_one())
-            if already_imported:
-                # Handle the conflict.
-                self.__handle_existing_codes__()
-
         # Read all of the files from the provided directory.
-        for filename in os.listdir(self.sheet_dir):
+        for filename in os.listdir(self.upload_dir):
             # If the file is a csv...
             if filename.endswith('.csv'):
 
                 # The filepath to this csv.
-                path = self.sheet_dir + '/' + filename
+                path = self.upload_dir + '/' + filename
 
                 # If we're generating adjudication sheets...
-                if self.action == 'generate_adjudication':
+                if self.action == 'upload_coding':
                     # Get the coder's name.
                     if self.infer_coder_names:
-                        coder_name = filename.strip('.csv')
+                        coder_name = filename.replace('.csv', '')
                     else:
                         print 'enter coder name (file: %s)' % filename
                         coder_name = raw_input('>> ')
@@ -618,11 +647,18 @@ class TweetManager(object):
                     coder = self.__get_db_coder__(coder_name=coder_name)
                     # Read the codesheet passing in a coder.
                     self.__handle_sheet__(path, coder)
-                else:
+
+                elif self.action == 'upload_adjudication':
                     # Only pass the path.
                     self.__handle_sheet__(path)
 
     def __auto_adjudicate__(self):
+        """
+        Adjudicates as many tweets as possible using rule
+        based methods, and marks tweets which need human
+        adjudication by adding the code 'Adjudicate' to
+        the appropriate field in the code_comparison database.
+        """
         print 'Auto-adjudicating...'
         # Get all of the tweets with codes uploaded.
         tweets = self.code_comparison.find()
@@ -703,11 +739,20 @@ class TweetManager(object):
         self.__update_rumor_status__('auto_adjudicated')
 
     def __delegate_adjudication__(self, args):
+        """
+        Takes tweets from code comparison which meet the
+        criteria for the adjudication_level specified
+        in args, and outputs them to CSV(s) according
+        to the adjudicator_assignments.csv in args.
+        """
 
+        # Setup the database query and the columns
+        # which will be written to the csv according
+        # to the level of adjudication we are assigning.
         if self.adjudication_level == 'first':
             query = {'$and': [
                 {'first_final': 'Adjudicate'},
-                {'$not': {'second_final': 'Adjudicate'}}
+                {'second_final': {'$ne': 'Adjudicate'}}
             ]}
             export_cols = args.export_cols + \
                 ['first_level_code_comparison', 'second_level_code_comparison']
@@ -717,16 +762,16 @@ class TweetManager(object):
             query = {'first_final': 'Adjudicate',
                      'second_final': 'Adjudicate'}
             export_cols = args.export_cols + \
-                ['first_level_codes', 'second_level_codes']
+                ['first_level_code_comparison', 'second_level_code_comparison']
             export_cols.remove('tweet_id')
             suffix = '_both.csv'
         elif self.adjudication_level == 'second':
             query = {'$and': [
-                {'second_final': 'Adjudicate'},
-                {'$not': {'first_final': 'Adjudicate'}}
+                {'first_final': {'$ne': 'Adjudicate'}},
+                {'second_final': 'Adjudicate'}
             ]}
             export_cols = args.export_cols + \
-                ['final_codes', 'second_level_codes']
+                ['final_codes', 'second_level_code_comparison']
             export_cols.remove('tweet_id')
             suffix = '_level2.csv'
         else:
@@ -772,23 +817,50 @@ class TweetManager(object):
                 del loads[cur_adj]
                 del sheets[cur_adj]
 
-    def generate_adjudication(self, args):
+    def upload_coding(self, args):
         """
-        Imports codes into the database, performs auto-adjudication
-        and then outputs adjudication sheets.
+        Imports codes into the database
         """
+        # Check if we've already imported these codes.
+        already_imported = bool(self.code_comparison.find_one())
+        if already_imported:
+            # Handle the conflict.
+            self.__handle_existing_codes__()
 
+        # Upload the codes.
         self.__upload_all__()
         self.__update_rumor_status__('coding_uploaded')
 
+    def generate_adjudication(self, args):
+        """
+        Performs auto-adjudication (if needed)
+        and then outputs adjudication sheets for the
+        'adjudication level' specified in the args.
+        """
         # Auto adjudicate the rumor if it hasn't been already.
         if not self.status_log['auto_adjudicated']:
             self.__auto_adjudicate__()
-        self.__delegate_adjudication__(args)
-        self.__update_rumor_status__(self.adj_meta_prefix + '_assigned')
+
+        # Loop through the possible adjudication levels...
+        adj_levels = ['adjudication1', 'adjudication_both', 'adjudication2']
+        for level in adj_levels:
+            # If we arrive at the one supplied to args,
+            # generate the adjudication.
+            if self.adj_meta_prefix == level:
+                self.__delegate_adjudication__(args)
+                self.__update_rumor_status__(
+                    self.adj_meta_prefix + '_assigned')
+                break
+
+            # If we encounter an earlier level which has not been
+            # uploaded notify the user and abort.
+            elif not self.status_log[level + '_uploaded']:
+                print '!!!'
+                print level, ' has not been uploaded yet.'
+                print 'Please upload it before assigning more.'
+                exit()
 
     def __upload_adjudication__(self, db_id, codes):
-
         # Create our update object.
         # (Adding a field to mark that the tweet was
         #  adjudicated.)
@@ -829,6 +901,22 @@ class TweetManager(object):
         )
 
     def __upload_codes__(self, db_id, text, codes, coder):
+        """
+        Uploads the codes for a single tweet to the code_comparison
+        database.
+
+        Args:
+            db_id (str): The db_id of the tweet
+                        (taken from rumor_compression database)
+            text (str): The tweet text
+            codes (dict str:str): The codes for the tweet in the format:
+                            {'first_level': first_code,
+                            'second_level': [second_codes]}
+            coder (dict): The coder database object for the coder
+                            who assigned these codes.
+                            (taken from coders database)
+
+        """
         # Create the upload_codes object.
         upload_codes = {
             'coder_id': coder['coder_id'],
@@ -852,7 +940,7 @@ class TweetManager(object):
             upsert=True
         )
 
-    def __handle_sheet__(self, path, coder=None):
+    def __handle_sheet__(self, path, coder=None, db_id_str=True):
         """
         Handles reading in one csv sheet.
         (Handles both coding-sheets and adjudication-sheets.)
@@ -869,6 +957,11 @@ class TweetManager(object):
             for row in codesheet:
                 # Read the tweet information.
                 db_id = row['db_id']
+
+                # If needed, cast the db_id to a string.
+                if db_id_str:
+                    db_id = str(db_id)
+
                 text = row['text'].decode('latin-1').encode('utf-8')
 
                 # Read the codes.
@@ -882,19 +975,34 @@ class TweetManager(object):
                             codes['second_level'].append(col_name)
                         elif col_name.lower() == 'no_second_code':
                             codes['no_second_code'] = True
+
                 if db_id:
                     # Handle the reading of the sheet depending on action.
-                    if self.action == 'generate_adjudication':
-                        self.__upload_codes__(db_id, text, codes, coder)
+                    if self.action == 'upload_coding':
+                        # If after going through all of the columns there still
+                        # isn't a first level code...
+                        if codes['first_level'] is None:
+                            print '\n\n\nWARNING:\t\n'
+                            print 'Sheet:', path
+                            print 'Is missing a code for db_id: ', db_id
+                            print 'Abort?(Y/n):'
+                            usr_in = raw_input('>>')
+                            if usr_in == 'Y':
+                                exit()
+                        else:
+                            self.__upload_codes__(db_id, text, codes, coder)
 
                     elif self.action == 'upload_adjudication':
                         self.__upload_adjudication__(db_id, codes)
 
     def propagate_codes(self, args):
+        """
+        Propagates codes from the code_comparsion database
+        which contains only unique tweets, to the event database
+        which contains duplicates. (Each duplicate tweet is
+        assigned the same code as the corresponding unique tweet).
+        """
         print 'Propagating...'
-        self.code_comparison = utils.mongo_connect(
-            db_name='code_comparison',
-            collection_name=self.rumor)
         # Find all of the non adjudicated codes.
         coded_uniques = self.code_comparison.find(
             {'$or': [
@@ -913,7 +1021,7 @@ class TweetManager(object):
                                 'first_code': first_code,
                                 'rumor': self.rumor
                             }
-                        ],
+                        ]
                      }
 
             compression_mapping = self.compression.find(
@@ -925,7 +1033,7 @@ class TweetManager(object):
             # Get the list of tweets which are mapped to this tweet.
             duplicate_ids = map(str, compression_mapping['id'])
             # Propagate the codes.
-            query = {'id_str': {'$in': duplicate_ids}}
+            query = {'id': {'$in': duplicate_ids}}
             self.rumor_collection.update(
                 query,
                 {'$set': codes},
@@ -940,9 +1048,76 @@ class TweetManager(object):
         FUNCTION:
             Uploads adjudicated tweets to the database.
         """
+        uploaded_str = self.adj_meta_prefix + '_uploaded'
+        if self.status_log[uploaded_str]:
+            raise RuntimeError(
+                'This level of adjudication has already been uploaded')
+        else:
+            self.__upload_all__()
+            self.__update_rumor_status__(uploaded_str)
 
-        self.__upload_all__()
-        self.__update_rumor_status__(self.adj_meta_prefix + '_uploaded')
+    def __prompt_for_code__(self, level):
+        """
+        (Helper for __handle_missing_code__)
+        Prompts the user to choose a code from a
+        list of either first or second level codes,
+        and returns the chosen code.
+
+        Args:
+            level (int): The level of codes (1 or 2)
+                         to present to the user.
+        """
+        if level == 1:
+            options = self.first_codes
+        elif level == 2:
+            options = self.second_codes
+        else:
+            raise ValueError('Invalid level parameter: '+str(level))
+
+        print 'Please assign a code (!q to abort):'
+        for i, code in enumerate(options):
+            print code, '\t('+str(i)+')'
+
+        usr_in = -1
+        while  0 > usr_in or usr_in > len(options):
+            usr_in = raw_input('>>')
+            if usr_in == '!q':
+                exit()
+            else:
+                try:
+                    usr_in = int(usr_in)
+                except:
+                    usr_in = -1
+
+        return options[usr_in]
+
+    def __handle_missing_code__(self, text):
+        """
+        In the case that a tweet is missing a code,
+        this method presents the tweet to the user
+        and prompts them to assign a code to it.
+
+        Args:
+            text (str): The text of the tweet which is
+                        missing a code.
+
+        Returns:
+            (dict): A codes object of the form:
+                        {'first_level': first_code,
+                        'second_level': [second_codes]}
+        """
+        print '\n', text, '\n'
+        first_code = self.__prompt_for_code__(1)
+        second_codes = [self.__prompt_for_code__(2)]
+        usr_in = ''
+        while usr_in != 'n':
+            if usr_in == 'y':
+                second_codes.append(self.__prompt_for_code__(text, 2))
+
+            print 'Enter another second_level code?(y/n)'
+            usr_in = raw_input('>>')
+
+        return {'first_level': first_code, 'second_level': second_codes}
 
 
 # !!!WIP!!!
