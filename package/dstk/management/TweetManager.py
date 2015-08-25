@@ -388,6 +388,8 @@ class TweetManager(object):
             # Clean the text.
             text = self.cleaner.clean(tweet['text'])
 
+            retweet = bool()
+
             truncated = re.search(r'\.\.\.$', text)
 
             if truncated:
@@ -759,8 +761,10 @@ class TweetManager(object):
             export_cols.remove('tweet_id')
             suffix = '_level1.csv'
         elif self.adjudication_level == 'both':
-            query = {'first_final': 'Adjudicate',
-                     'second_final': 'Adjudicate'}
+            query = {'$and': [
+                {'first_final': 'Adjudicate'},
+                {'second_final': 'Adjudicate'}
+            ]}
             export_cols = args.export_cols + \
                 ['first_level_code_comparison', 'second_level_code_comparison']
             export_cols.remove('tweet_id')
@@ -771,7 +775,7 @@ class TweetManager(object):
                 {'second_final': 'Adjudicate'}
             ]}
             export_cols = args.export_cols + \
-                ['final_codes', 'second_level_code_comparison']
+                ['final_code_comparison', 'second_level_code_comparison']
             export_cols.remove('tweet_id')
             suffix = '_level2.csv'
         else:
@@ -1106,13 +1110,13 @@ class TweetManager(object):
         """
         print '\n', text, '\n'
         first_code = self.__prompt_for_code__(1)
-        second_codes = [self.__prompt_for_code__(2)]
+        second_codes = []
         usr_in = ''
         while usr_in != 'n':
             if usr_in == 'y':
                 second_codes.append(self.__prompt_for_code__(text, 2))
 
-            print 'Enter another second_level code?(y/n)'
+            print 'Add second_level code?(y/n)'
             usr_in = raw_input('>>')
 
         return {'first_level': first_code, 'second_level': second_codes}
