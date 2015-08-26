@@ -3,10 +3,10 @@ import re
 rumor_terms = {
     ###China Explosion##
     'china_pentagon':{
-        {'$and':[
+        '$and':[
             {'text':re.compile('pentagon|currency|weapon|rod of god',re.IGNORECASE)},
             {'text':{'$not':re.compile('iron|ore',re.IGNORECASE)}}
-            ]}
+            ]
     },
     ###Belgium##
     'belgian_waffles':{
