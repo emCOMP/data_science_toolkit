@@ -104,7 +104,8 @@ class TweetManager(object):
         self.rumor_collection = self.__create_rumor_collection__()
 
         code_related_actions = ['upload_coding', 'upload_adjudication',
-                                'generate_coding', 'generate_adjudication']
+                                'generate_coding', 'generate_adjudication',
+                                'propagate_codes']
         if action in code_related_actions:
             # db Holds all of the codes for a given set of tweets.
             self.code_comparison = utils.mongo_connect(
