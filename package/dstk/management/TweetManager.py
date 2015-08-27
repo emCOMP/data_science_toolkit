@@ -1031,10 +1031,9 @@ class TweetManager(object):
                 {'db_id': int(u['db_id'])},
             )
             # Pull the tweet out of the iterator.
-
             compression_mapping = list(compression_mapping)[0]
             # Get the list of tweets which are mapped to this tweet.
-            duplicate_ids = compression_mapping['id']
+            duplicate_ids = map(int ,compression_mapping['id'])
             # Propagate the codes.
             query = {'id': {'$in': duplicate_ids}}
             self.rumor_collection.update(
