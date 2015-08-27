@@ -172,7 +172,7 @@ class TweetCleaner(object):
     # Removes puncutation.
     def scrub_punctuation(self, text):
         exclude = frozenset(list(string.punctuation))
-        result = ''.join([c for c in text if c not in nl_characters])
+        result = ''.join([c for c in text if c not in exclude])
         return result
 
     # Removes user-mentions.
