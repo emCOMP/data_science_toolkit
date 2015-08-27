@@ -5,6 +5,7 @@ import string
 
 
 class TweetCleaner(object):
+
     """
     Processes tweet text using a set of specified operations.
 
@@ -126,13 +127,13 @@ class TweetCleaner(object):
     # Removes newline characters.
     def scrub_newlines(self, text):
 
-        nl_characters = ['\r',
-                         '\n',
-                         u'\u0085',
-                         u'\u000B',
-                         u'\u000C',
-                         u'\u2028',
-                         u'\u2029']
+        nl_characters = frozenset(['\r',
+                                   '\n',
+                                   u'\u0085',
+                                   u'\u000B',
+                                   u'\u000C',
+                                   u'\u2028',
+                                   u'\u2029'])
 
         result = ''.join([c for c in text if c not in nl_characters])
         return result
@@ -170,8 +171,9 @@ class TweetCleaner(object):
 
     # Removes puncutation.
     def scrub_punctuation(self, text):
-        return text.translate(
-            string.maketrans("",""), string.punctuation)
+        exclude = frozenset(list(string.punctuation))
+        result = ''.join([c for c in text if c not in nl_characters])
+        return result
 
     # Removes user-mentions.
     # NOTE: This removes the entire mention, not just the @.
