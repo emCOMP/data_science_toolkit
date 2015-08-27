@@ -1,6 +1,7 @@
 import re
 from nltk.corpus import stopwords
 from nltk.stem.snowball import EnglishStemmer
+import string
 
 
 class TweetCleaner(object):
@@ -36,8 +37,8 @@ class TweetCleaner(object):
             'scrub_hashtags': False,
             'scrub_retweet_text': True,
             'scrub_quotes': True,
-            'scrub_punctuation': False,
             'scrub_mentions': False,
+            'scrub_punctuation': False,
             'remove_stopwords': False,
             'stem_words': False,
         }
@@ -52,8 +53,8 @@ class TweetCleaner(object):
             'scrub_hashtags',
             'scrub_retweet_text',
             'scrub_quotes',
-            'scrub_punctuation',
             'scrub_mentions',
+            'scrub_punctuation',
             'remove_stopwords',
             'stem_words'
         ]
@@ -159,7 +160,8 @@ class TweetCleaner(object):
 
     # Removes puncutation.
     def scrub_punctuation(self, text):
-        return re.sub(r'[\.,-\/!$%\^&\*;:{}=\-_`~()]', '', text)
+        return text.translate(
+            string.maketrans("",""), string.punctuation)
 
     # Removes user-mentions.
     # NOTE: This removes the entire mention, not just the @.
