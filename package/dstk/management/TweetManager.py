@@ -1008,7 +1008,7 @@ class TweetManager(object):
         print 'Propagating...'
         # Find all of the non adjudicated codes.
         coded_uniques = self.code_comparison.find(
-            {'$or': [
+            {'$and': [
                 {'first_final': {'$ne': 'Adjudicate'}},
                 {'second_final': {'$ne': 'Adjudicate'}}
             ]}
@@ -1034,7 +1034,7 @@ class TweetManager(object):
 
             compression_mapping = list(compression_mapping)[0]
             # Get the list of tweets which are mapped to this tweet.
-            duplicate_ids = map(str, compression_mapping['id'])
+            duplicate_ids = compression_mapping['id']
             # Propagate the codes.
             query = {'id': {'$in': duplicate_ids}}
             self.rumor_collection.update(
