@@ -125,7 +125,17 @@ class TweetCleaner(object):
 
     # Removes newline characters.
     def scrub_newlines(self, text):
-        return text.replace('\n', '')
+
+        nl_characters = ['\r',
+                         '\n',
+                         u'\u0085',
+                         u'\u000B',
+                         u'\u000C',
+                         u'\u2028',
+                         u'\u2029']
+
+        result = ''.join([c for c in text if c not in nl_characters])
+        return result
 
     # Casts all characters to lowercase.
     def lowercase(self, text):
