@@ -385,25 +385,63 @@ class TweetManager(object):
             count = 0
 
         print 'Compressing...'
-        for tweet in tweet_list:
+        # Get the total number of tweets to compress
+        total = self.rumor_collection.count()
+
+        for i, tweet in enumerate(tweet_list):
+            print 'Compressing Tweet ', str(i + 1), ' of ', str(total) 
             # Clean the text.
             text = self.cleaner.clean(tweet['text'])
 
-            retweet = bool()
+            # If the tweet is a retweet...
+            if 'retweeted_status' in tweet:
+                # Get the id of the original
+                rt_id = tweet['retweeted_status']['id']
 
-            truncated = re.search(r'\.\.\.$', text)
+                # If we don't have the original
+                if self.compression.find_one({'id': rt_id}) is None:
+                    # If we don't have another retweet stored already...
+                    if self.compression.find_one({'retweeted_status.id': rt_id}) is None:
+                        # Add a new entry to the database.
+                        self.compression.insert({'db_id': count,
+                         'rumor': self.rumor,
+                         'text': text,
+                         'id': [tweet['id']]})
 
-            if truncated:
-                # Remove the truncated word and the elipis.
-                non_truncated_words = text.split()[:-1]
-                non_truncated_text = re.escape(' '.join(non_truncated_words))
-                # Create regex to match the non-truncated part of the text
-                # (starting from the beginning of the tweet.)
-                reg = re.compile(r'^' + non_truncated_text, re.IGNORECASE)
-                # If we do not find a match...
-                if self.compression.find_one({'text': {'$regex': reg}}) is not None:
-                    self.compression.update({'text': text},
+                    else:
+                        self.compression.update({'retweeted_status.id': rt_id},
+                            {'$addToSet': {'id': tweet['id']}})
+                else:
+                    self.compression.update({'id': rt_id},
                         {'$addToSet': {'id': tweet['id']}})
+            else:
+                # WIP Code for truncation detection.
+                # truncated = re.search(r'\.\.\.$', text)
+                # if truncated:
+                #     # Remove the truncated word and the elipis.
+                #     non_truncated_words = text.split()[:-1]
+                #     non_truncated_text = re.escape(' '.join(non_truncated_words))
+                #     # Create regex to match the non-truncated part of the text
+                #     # (starting from the beginning of the tweet.)
+                #     reg = re.compile(r'^' + non_truncated_text, re.IGNORECASE)
+                #     # If we do find a match...
+                #     if self.compression.find_one({'text': {'$regex': reg}}) is not None:
+                #         self.compression.update({'text': text},
+                #             {'$addToSet': {'id': tweet['id']}})
+                #     else:
+                #         # Add a new entry to the database.
+                #         self.compression.insert({'db_id': count,
+                #                                  'rumor': self.rumor,
+                #                                  'text': text,
+                #                                  'id': [tweet['id']]})
+
+                # If after cleaning we find an exact match in the database...
+                if self.compression.find_one({'text': text}) is not None:
+                    # Add this tweet to the compression list for the match.
+                    self.compression.update({'text': text},
+                                            {'$addToSet': {'id': tweet['id']}})
+
+                # Otherwise...
                 else:
                     # Add a new entry to the database.
                     self.compression.insert({'db_id': count,
@@ -411,24 +449,10 @@ class TweetManager(object):
                                              'text': text,
                                              'id': [tweet['id']]})
 
-            # If after cleaning we find an exact match in the database...
-            elif self.compression.find_one({'text': text}) is not None:
-                # Add this tweet to the compression list for the match.
-                self.compression.update({'text': text},
-                                        {'$addToSet': {'id': tweet['id']}})
-
-            # Otherwise...
-            else:
-                # Add a new entry to the database.
-                self.compression.insert({'db_id': count,
-                                         'rumor': self.rumor,
-                                         'text': text,
-                                         'id': [tweet['id']]})
-
-                # NOTE: Old code, not sure what this does / if important.
-                if count == 0:
-                    self.compression.ensure_index('text')
-                count += 1
+                    # NOTE: Old code, not sure what this does / if important.
+                    if count == 0:
+                        self.compression.ensure_index('text')
+                    count += 1
 
     def compress(self, args):
         """
@@ -835,6 +859,7 @@ class TweetManager(object):
         # Upload the codes.
         self.__upload_all__()
         self.__update_rumor_status__('coding_uploaded')
+        self.__update_rumor_status__('auto_adjudicated', value=False)
 
     def generate_adjudication(self, args):
         """
