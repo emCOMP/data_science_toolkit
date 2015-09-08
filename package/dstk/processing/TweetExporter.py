@@ -132,6 +132,8 @@ class TweetExporter(object):
 
 #   Note: 'tweet' is a single tweet object
 #           in all of the methods below.
+    def mongo_id(self, tweet):
+        return str(tweet['_id'])
 
     def db_id(self, tweet):
         return str(tweet['db_id'])
@@ -155,7 +157,10 @@ class TweetExporter(object):
             return ''
 
     def first_level_codes(self, tweet):
-        return tweet['codes'][0]['first_code']
+        try:
+            return tweet['codes'][0]['first_code']
+        except:
+            return 'Not found.'
 
     def second_level_code_comparison(self, tweet):
         if 'codes'in tweet.keys():
@@ -177,9 +182,12 @@ class TweetExporter(object):
             return ''
 
     def second_level_codes(self, tweet):
-        codes = tweet['codes'][0]['second_code']
-        codes = [c for c in codes if c != 'Adjudicate']
-        return ', '.join(sorted(codes))
+        try:
+            codes = tweet['codes'][0]['second_code']
+            codes = [c for c in codes if c != 'Adjudicate']
+            return ', '.join(sorted(codes))
+        except:
+            return 'Not found.'
 
     def final_code_comparison(self, tweet):
         result = []
@@ -194,8 +202,8 @@ class TweetExporter(object):
 
         return ', '.join(sorted(result))
 
-    def time(self, tweet):
-        pass
+    def datetime(self, tweet):
+        return tweet['created_ts'].isoformat()
 
 #####################################
 #     Testing Stuff For Testing     #
