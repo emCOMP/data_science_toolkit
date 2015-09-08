@@ -13,7 +13,7 @@ def main(db, rumor):
     )
     for u in coded_uniques:
         # Get the final codes for the tweet.
-        codes = u['uncertainty_codes']
+        codes = {'uncertainty_codes': u['uncertainty_codes']}
 
         compression_mapping = compression.find(
             {'db_id': int(u['db_id'])},
