@@ -33,25 +33,30 @@ class TweetExporter(object):
     def __init__(
             self,
             path,
-            export_cols,
-            aux_cols={},
+            export_features,
+            aux_features=[],
             order_override=None):
-        # The columns to include in exported CSVs.
-        self.export_cols = export_cols
+
+        self.export_features = export_features
+        # Get the column headers for each of our export features.
+        # (The columns to include in exported CSVs.)
+        self.export_cols = []
+        for f in self.export_features:
+            feat_func = self.__getattribute__(f)
+            self.export_cols.extend(feat_func(header_only=True))
 
         # Auxilliary Columns
         # We split them up into two lists because we need to preserve order.
-        self.aux_headers = aux_cols.keys()
-        self.aux_vals = [aux_cols[k] for k in self.aux_headers]
+        self.aux_features = aux_features
 
         # The order in which to output the columns.
         if order_override is None:
             # Default Order
-            self.output_order = self.aux_headers + export_cols
+            self.output_order = self.aux_features + self.export_cols
 
         else:
             # Check to make sure all columns are accounted for.
-            if set(self.aux_headers + export_cols) == set(order_override):
+            if set(self.aux_features + self.export_cols) == set(order_override):
                 self.output_order = order_override
             else:
                 raise ValueError('order_override does not match \
@@ -59,7 +64,7 @@ class TweetExporter(object):
         # Store our path.
         self.path = path
         # The csvwriter object to write the file.
-        self.writer = self.__init_output__(self.path)
+        self.writer = self.__init_output__()
 
         # A cleaner to clean the tweets for output purposes.
         cleaner_settings = {
@@ -71,15 +76,13 @@ class TweetExporter(object):
             all_ops=False, user_settings=cleaner_settings)
 
     # Initializes the output file and writes the header.
-    def __init_output__(self, path):
-        # Quote all of our headers.
-        headers = self.output_order
-        f = open(path, 'wb')
-        writer = csv.writer(f, quoting=csv.QUOTE_ALL)
-        writer.writerow(headers)
+    def __init_output__(self):
+        f = open(self.path, 'wb')
+        writer = csv.DictWriter(f, self.output_order, quoting=csv.QUOTE_ALL)
+        writer.writeheader()
         return writer
 
-    def export_tweet(self, tweet, extra={}):
+    def export_tweet(self, tweet, aux_features={}):
         """
         Writes a tweet to the TweetExporter's output file.
 
@@ -88,32 +91,24 @@ class TweetExporter(object):
                         THIS MUST BE THE SAME FOR EVERY CALL TO EXPORT TWEET
                         Format: {header: value_for_this_tweet}
         """
-        out_order = self.output_order + extra.keys()
-        line = []
-        for col in out_order:
-            # If the column is a built-in...
-            if col in self.export_cols:
+
+        # This is the object we will pass to the DictWriter.
+        line = {k: '' for k in self.output_order}
+
+        # Grab all of our feature values.
+        for feat in self.export_features:
+            try:
                 # Get the generator function
-                generator = self.__getattribute__(col)
+                generator = self.__getattribute__(feat)
+                # Call it on the provided tweet.
+                val = generator(tweet)
+                line.update(val)
+            except KeyError:
+                pass
 
-                try:
-                    # Call it on the provided tweet.
-                    val = generator(tweet)
-                except KeyError:
-                    # If the tweet doesn't have the appropriate field.
-                    # We just return an error value.
-                    val = 'FEATURE_NOT_FOUND'
-
-                line.append(val)
-
-            # Otherwise it must be an aux column...
-            elif col in self.aux_headers:
-                # Retrive the provided aux value.
-                header_index = self.aux_headers.index(col)
-                line.append(self.aux_vals[header_index])
-
-            elif col in extra:
-                line.append(extra[col])
+        # Add the aux features passed in to our line.
+        line.update(
+            {k: v for k, v in aux_features.iteritems() if k in self.aux_features})
 
         # Write to the file.
         self.writer.writerow(line)
@@ -132,38 +127,70 @@ class TweetExporter(object):
 
 #   Note: 'tweet' is a single tweet object
 #           in all of the methods below.
-    def mongo_id(self, tweet):
-        return str(tweet['_id'])
+    def mongo_id(self, tweet=None, header_only=False):
+        header = 'mongo_id'
 
-    def db_id(self, tweet):
-        return str(tweet['db_id'])
-
-    def text(self, tweet):
-        return self.cleaner.clean(tweet['text'])
-
-    def tweet_id(self, tweet):
-        if type(tweet['id']) == list:
-            return str(tweet['id'][0])
+        if header_only:
+            return [header]
         else:
-            return str(tweet['id'])
+            return {header: str(tweet['_id'])}
 
-    def first_level_code_comparison(self, tweet):
-        if 'codes'in tweet.keys():
+    def db_id(self, tweet=None, header_only=False):
+        header = 'db_id'
+
+        if header_only:
+            return [header]
+        else:
+            return {header: str(tweet['db_id'])}
+
+    def text(self, tweet=None, header_only=False):
+        header = 'text'
+
+        if header_only:
+            return [header]
+        else:
+            return {header: self.cleaner.clean(tweet['text'])}
+
+    def tweet_id(self, tweet=None, header_only=False):
+        header = 'tweet_id'
+
+        if header_only:
+            return [header]
+        elif type(tweet['id']) == list:
+            return {header: str(tweet['id'][0])}
+        else:
+            return {header: str(tweet['id'])}
+
+    def first_level_code_comparison(self, tweet=None, header_only=False):
+        header = 'first_level_code_comparison'
+
+        if header_only:
+            return [header]
+        elif 'codes'in tweet.keys():
             result = []
             for container in tweet['codes']:
                 result.append(container['first'])
-            return ', '.join(sorted(result))
+            return {header: ', '.join(sorted(result))}
         else:
-            return ''
+            return {header: ''}
 
-    def first_level_codes(self, tweet):
-        try:
-            return tweet['codes'][0]['first_code']
-        except:
-            return 'Not found.'
+    def first_level_codes(self, tweet=None, header_only=False):
+        header = 'first_level_codes'
 
-    def second_level_code_comparison(self, tweet):
-        if 'codes'in tweet.keys():
+        if header_only:
+            return [header]
+        else:
+            try:
+                return {header: tweet['codes'][0]['first_code']}
+            except:
+                return {header: 'Not found.'}
+
+    def second_level_code_comparison(self, tweet=None, header_only=False):
+        header = 'second_level_code_comparison'
+
+        if header_only:
+            return [header]
+        elif 'codes'in tweet.keys():
             ignore = ['coder_id',
                       'first',
                       'Affirm',
@@ -177,33 +204,101 @@ class TweetExporter(object):
                 for code in container:
                     if code not in ignore:
                         result.append(code)
-            return ', '.join(sorted(result))
+            return {header: ', '.join(sorted(result))}
         else:
-            return ''
+            return {header: ''}
 
-    def second_level_codes(self, tweet):
-        try:
-            codes = tweet['codes'][0]['second_code']
-            codes = [c for c in codes if c != 'Adjudicate']
-            return ', '.join(sorted(codes))
-        except:
-            return 'Not found.'
+    def second_level_codes(self, tweet=None, header_only=False):
+        header = 'second_level_codes'
 
-    def final_code_comparison(self, tweet):
-        result = []
-        if 'first_final' in tweet:
-            result.append(tweet['first_final'])
+        if header_only:
+            return [header]
+        else:
+            try:
+                codes = tweet['codes'][0]['second_code']
+                codes = [c for c in codes if c != 'Adjudicate']
+                return {header: ', '.join(sorted(codes))}
+            except:
+                return {header: 'Not found.'}
 
-        if 'second_final' in tweet:
-            second_final = tweet['second_final']
-            for code in second_final:
-                if code != 'Adjudicate':
-                    result.append(code)
+    def second_level_separate(self, tweet=None, header_only=False):
+        headers = ['Implicit', 'Uncertainty', 'Ambiguity']
+        result = {c: 0 for c in headers}
 
-        return ', '.join(sorted(result))
+        if header_only:
+            return headers
+        else:
+            try:
+                codes = tweet['codes'][0]['second_code']
+                for c in codes:
+                    if c in result:
+                        result[c] = 1
 
-    def datetime(self, tweet):
-        return tweet['created_ts'].isoformat()
+            except:
+                pass
+
+            return result
+
+    def final_code_comparison(self, tweet=None, header_only=False):
+        header = 'final_code_comparison'
+
+        if header_only:
+            return [header]
+        else:
+            result = []
+            if 'first_final' in tweet:
+                result.append(tweet['first_final'])
+
+            if 'second_final' in tweet:
+                second_final = tweet['second_final']
+                for code in second_final:
+                    if code != 'Adjudicate':
+                        result.append(code)
+
+            return {header: ', '.join(sorted(result))}
+
+    def datetime(self, tweet=None, header_only=False):
+        header = 'datetime'
+        if header_only:
+            return [header]
+        else:
+            return {header: tweet['created_ts'].isoformat()}
+
+    def retweet(self, tweet=None, header_only=False):
+        header = 'datetime'
+
+        if header_only:
+            return [header]
+        else:
+            text = tweet['text'].lower()
+            return {header: ("rt @" in text or "via @" in text)}
+
+    def uncertainty_codes(self, tweet=None, header_only=False):
+        headers = ["R/U",
+                   "Named",
+                   "Emotional_Comment",
+                   "Question:_Theorizing",
+                   "Uncertain_Space",
+                   "Doubt_or_Challenge",
+                   "Theorizing",
+                   "Personal",
+                   "Open_Question",
+                   "Impersonal",
+                   "Question:_Doubt",
+                   "Trigger_Word",
+                   "Question_Source",
+                   "Statement_of_Incredulity",
+                   "Simple_Pass",
+                   "Wish/_Dread",
+                   "Implied",
+                   "Unnamed",
+                   "Linked",
+                   "Formal"]
+
+        if header_only:
+            return headers
+        else:
+            return tweet['uncertainty_codes']
 
 #####################################
 #     Testing Stuff For Testing     #
@@ -211,17 +306,16 @@ class TweetExporter(object):
 
 
 def test(db, rumor):
-    import utils
-    mongo = utils.mongo_connect(db, rumor)
+    from pymongo import MongoClient
+    mongo = MongoClient('z')[db][rumor]
     test = mongo.find({}).limit(10)
     e = TweetExporter(
         'test.csv',
-        ["db_id", "tweet_id", "text"],
-        {'rumor': rumor},
-        ["db_id", "rumor", "tweet_id", "text"]
+        ["tweet_id", "text", "second_level_separate"],
+        aux_features=['rumor', 'dummy']
     )
     for t in test:
-        e.export_tweet(t)
+        e.export_tweet(t, {'rumor': rumor})
 
     exit()
 

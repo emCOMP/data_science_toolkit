@@ -221,6 +221,24 @@ class TweetExporter(object):
             except:
                 return {header: 'Not found.'}
 
+    def second_level_separate(self, tweet=None, header_only=False):
+        headers = ['Implicit', 'Uncertainty', 'Ambiguity']
+        result = {c: 0 for c in headers}
+
+        if header_only:
+            return headers
+        else:
+            try:
+                codes = tweet['codes'][0]['second_code']
+                for c in codes:
+                    if c in result:
+                        result[c] = 1
+
+            except:
+                pass
+
+            return result
+
     def final_code_comparison(self, tweet=None, header_only=False):
         header = 'final_code_comparison'
 
@@ -290,10 +308,10 @@ class TweetExporter(object):
 def test(db, rumor):
     from pymongo import MongoClient
     mongo = MongoClient('z')[db][rumor]
-    test = mongo.find({'uncertainty_codes':{'$exists':1}}).limit(10)
+    test = mongo.find({}).limit(10)
     e = TweetExporter(
         'test.csv',
-        ["tweet_id", "text", "uncertainty_codes"],
+        ["tweet_id", "text", "second_level_separate"],
         aux_features=['rumor', 'dummy']
     )
     for t in test:
