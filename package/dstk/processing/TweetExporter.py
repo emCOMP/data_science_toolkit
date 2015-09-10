@@ -265,7 +265,7 @@ class TweetExporter(object):
             return {header: tweet['created_ts'].isoformat()}
 
     def retweet(self, tweet=None, header_only=False):
-        header = 'datetime'
+        header = 'retweet'
 
         if header_only:
             return [header]
