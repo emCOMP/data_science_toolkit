@@ -40,6 +40,7 @@ class TweetCleaner(object):
             'scrub_quotes': True,
             'scrub_mentions': False,
             'scrub_punctuation': False,
+            'scrub_nonstandard_punct': True,
             'remove_stopwords': False,
             'stem_words': False,
         }
@@ -51,11 +52,12 @@ class TweetCleaner(object):
             'scrub_url',
             'lowercase',
             'scrub_newlines',
-            'scrub_hashtags',
             'scrub_retweet_text',
+            'scrub_hashtags',
             'scrub_quotes',
             'scrub_mentions',
             'scrub_punctuation',
+            'scrub_nonstandard_punct',
             'remove_stopwords',
             'stem_words'
         ]
@@ -162,7 +164,6 @@ class TweetCleaner(object):
         result = re.sub(s, '', result).strip()
         result = re.sub(r'via @.*?:', '', result).strip()
         result = re.sub(r'via @.*?\b', '', result).strip()
-        result = re.sub(r'@.*?\b', '', result).strip()
         return result
 
     # Removes quotation marks.
@@ -217,3 +218,9 @@ class TweetCleaner(object):
         non_stopwords = [w for w in tmp if w not in self.stops]
         text = ' '.join(non_stopwords)
         return text
+
+    def scrub_nonstandard_punct(self, text):
+        exclude = frozenset(
+            ['-', '_', '*', '<', '>', '[', ']', '^', '`', '{', '|', '}', '~'])
+        result = ''.join([c for c in text if c not in exclude])
+        return result

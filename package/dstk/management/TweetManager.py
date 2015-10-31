@@ -64,6 +64,7 @@ class TweetManager(object):
         # A cleaner to clean our tweets for comparison purposes.
         cleaner_settings = {
             'scrub_retweet_text': True,
+            'scrub_mentions': True,
             'scrub_url': True
         }
         self.cleaner = TweetCleaner(
@@ -72,7 +73,7 @@ class TweetManager(object):
         # Run action-specific initialization.
         if args.action == 'generate_training':
             self.__init_training__(args)
-        elif args.action == 'generate_coding':
+        elif args.action == 'generate_coding' or args.action == 'generate_recodes':
             self.__init_coding__(args)
         elif args.action == 'generate_adjudication':
             self.__init_adjudicate__(args)
@@ -105,7 +106,7 @@ class TweetManager(object):
 
         code_related_actions = ['upload_coding', 'upload_adjudication',
                                 'generate_coding', 'generate_adjudication',
-                                'propagate_codes']
+                                'propagate_codes', 'generate_recodes']
         if action in code_related_actions:
             # db Holds all of the codes for a given set of tweets.
             self.code_comparison = utils.mongo_connect(
@@ -130,7 +131,12 @@ class TweetManager(object):
     def __init_coding__(self, args):
         self.__verify_compression__()
         self.coders_per_tweet = args.coders_per
-        tweets_to_code = self.compression.count() * self.coders_per_tweet
+
+        if args.action == 'generate_recodes':
+            q = {'$and':[{'first_final':{'$ne':code}} for code in self.skip_second_code]}
+            tweets_to_code = self.compression.find(q).count() * self.coders_per_tweet
+        if args.action == 'genrate_coding':
+            tweets_to_code = self.compression.count() * self.coders_per_tweet
 
         # Read the Coder Assigments csv.
         with open(args.coder_assignments, 'rb') as f:
@@ -356,6 +362,7 @@ class TweetManager(object):
                 if len(insert_list) == 1000:
                     rumor_collection.insert(insert_list)
                     insert_list = []
+            tweet_list.close()
 
             # Insert the final batch of tweets.
             rumor_collection.insert(insert_list)
@@ -369,13 +376,23 @@ class TweetManager(object):
     # Helper method for finding rumor specific tweets from config.py
     def __find_tweets__(self):
         query = config.rumor_terms[self.rumor]
-        tweet_list = self.db.find(query)
+        tweet_list = self.db.find(query, timeout=False)
         return tweet_list
 
     # Helper method for creating a list of unique tweets from a rumor
     def __compress__(self, sample=False):
+        cleaner_settings = {
+            'scrub_retweet_text': True,
+            'scrub_url': True,
+            'scrub_mentions': True,
+            'scub_newlines': True,
+            'scrub_nonstandard_punct': True
+        }
+        cleaner = TweetCleaner(
+            all_ops=False, user_settings=cleaner_settings)
+
         if sample:
-            tweet_list = self.rumor_collection.find({'sample': True})
+            tweet_list = self.rumor_collection.find({'sample': True}, timeout=False)
         else:
             tweet_list = self.__find_tweets__()
         try:
@@ -391,7 +408,7 @@ class TweetManager(object):
         for i, tweet in enumerate(tweet_list):
             print 'Compressing Tweet ', str(i + 1), ' of ', str(total) 
             # Clean the text.
-            text = self.cleaner.clean(tweet['text'])
+            text = cleaner.clean(tweet['text'])
 
             # If the tweet is a retweet...
             if 'retweeted_status' in tweet:
@@ -453,6 +470,7 @@ class TweetManager(object):
                     if count == 0:
                         self.compression.ensure_index('text')
                     count += 1
+        tweet_list.close()
 
     def compress(self, args):
         """
@@ -900,28 +918,28 @@ class TweetManager(object):
         if codes['first_level'] is not None:
             update['$set'].update({'first_final': codes['first_level']})
 
+        # Remove the adjudicate code.
+        self.code_comparison.update(
+            {'db_id': db_id},
+            {'$pull': {'second_final': 'Adjudicate'}},
+            upsert=True
+        )
+
         # If there are second level codes to update...
         if any(codes['second_level']):
-            # Remove the adjudicate code.
-            self.code_comparison.update(
-                {'db_id': db_id},
-                {'$pull': {'second_final': 'Adjudicate'}},
-                upsert=True
-            )
-
             # Add an operation to our update to add the new
             # second level codes.
             update['$addToSet'] = {
                 'second_final': {'$each': codes['second_level']}
             }
         # If the tweet was marked as having no second level code.
-        elif 'no_second_code' in codes:
-            # Remove the adjudicate code.
-            self.code_comparison.update(
-                {'db_id': db_id},
-                {'$pull': {'second_final': 'Adjudicate'}},
-                upsert=True
-            )
+        # elif 'no_second_code' in codes:
+        #     # Remove the adjudicate code.
+        #     self.code_comparison.update(
+        #         {'db_id': db_id},
+        #         {'$pull': {'second_final': 'Adjudicate'}},
+        #         upsert=True
+        #     )
 
         # Insert the codes into the database.
         self.code_comparison.update(
@@ -1051,14 +1069,21 @@ class TweetManager(object):
                             }
                         ]
                      }
+            if int(u['db_id']) == 40:
+                print 'FOUND! (DB_ID)'
 
             compression_mapping = self.compression.find(
                 {'db_id': int(u['db_id'])},
             )
             # Pull the tweet out of the iterator.
             compression_mapping = list(compression_mapping)[0]
+            if "323949024744964097" in compression_mapping['id']:
+                print 'FOUND! (STR)'
             # Get the list of tweets which are mapped to this tweet.
             duplicate_ids = map(int ,compression_mapping['id'])
+
+            if 323949024744964097 in duplicate_ids:
+                print 'FOUND! (INT)'
             # Propagate the codes.
             query = {'id': {'$in': duplicate_ids}}
             self.rumor_collection.update(
@@ -1145,6 +1170,27 @@ class TweetManager(object):
             usr_in = raw_input('>>')
 
         return {'first_level': first_code, 'second_level': second_codes}
+
+    def generate_recodes(self, args):
+        print 'Gathering tweets...'
+        # Get the full list of tweets which were marked related.
+        tweet_list = self.code_comparison.find(
+            {'$and':[{'first_final':{'$ne':code}} for code in self.skip_second_code]})
+
+        print 'Allocating...'
+        for tweet in tweet_list:
+            # Get the tweet id from the compression database.
+            c_tweet = self.compression.find_one({'db_id': int(tweet['db_id'])})
+            # Get the full tweet object from the rumor database.
+            # ('tweet' is an object from the compression database so it's
+            #   missing some text information)
+            full_tweet = self.rumor_collection.find_one(
+                            {'id': c_tweet['id'][0]})
+
+            # If the tweet exists...
+            if full_tweet is not None:
+                tweet['text'] = full_tweet['text']
+                self.__delegate__(tweet)
 
 
 # !!!WIP!!!
