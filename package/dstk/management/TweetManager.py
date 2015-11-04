@@ -536,11 +536,10 @@ class TweetManager(object):
             if unique:
                 # Record our selection
                 count += 1
+                result.append(tweet['text'])
                 full_tweet = self.rumor_collection.find_one({'id': tweet['id'][0]})
-                result.append(full_tweet['text'])
-
                 # Write the tweet to the file.
-                self.exporter.export_tweet(tweet)
+                self.exporter.export_tweet(full_tweet)
 
             # If we've achieved the desired 'sample_size', then stop.
             if count >= sample_size:
