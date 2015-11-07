@@ -138,7 +138,7 @@ class TweetManager(object):
         if args.action == 'generate_recodes':
             q = {'$and':[{'first_final':{'$ne':code}} for code in self.skip_second_code]}
             tweets_to_code = self.compression.find(q).count() * self.coders_per_tweet
-        if args.action == 'genrate_coding':
+        if args.action == 'generate_coding':
             tweets_to_code = self.compression.count() * self.coders_per_tweet
 
         # Read the Coder Assigments csv.
