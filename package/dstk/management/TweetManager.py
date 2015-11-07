@@ -132,6 +132,9 @@ class TweetManager(object):
         self.__verify_compression__()
         self.coders_per_tweet = args.coders_per
 
+        # Initialize, look into scope issues?
+        tweets_to_code = 0
+
         if args.action == 'generate_recodes':
             q = {'$and':[{'first_final':{'$ne':code}} for code in self.skip_second_code]}
             tweets_to_code = self.compression.find(q).count() * self.coders_per_tweet
