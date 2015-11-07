@@ -67,7 +67,8 @@ if __name__ == '__main__':
             'upload_coding',
             'generate_adjudication',
             'upload_adjudication',
-            'propagate_codes'
+            'propagate_codes',
+            'generate_recodes'
         ],
         type=str)
     general.add_argument(
@@ -108,7 +109,7 @@ if __name__ == '__main__':
     output.add_argument(
         '-aux', '--aux_cols', help='Auxilliary columns (filled with \
                                     user-specified values.)',
-        type=dict, required=False, default={})
+        type=dict, required=False, default=[])
     output.add_argument(
         '-co', '--col_order', help='Override the output order of csv columns.',
         type=str, required=False,
