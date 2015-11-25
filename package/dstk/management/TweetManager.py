@@ -1167,7 +1167,7 @@ class TweetManager(object):
         usr_in = ''
         while usr_in != 'n':
             if usr_in == 'y':
-                second_codes.append(self.__prompt_for_code__(text, 2))
+                second_codes.append(self.__prompt_for_code__(2))
 
             print 'Add second_level code?(y/n)'
             usr_in = raw_input('>>')
