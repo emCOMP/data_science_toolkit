@@ -383,7 +383,7 @@ class TweetManager(object):
         return tweet_list
 
     # Helper method for creating a list of unique tweets from a rumor
-    def __compress__(self, sample=False):
+    def __compress__(self):
         cleaner_settings = {
             'scrub_retweet_text': True,
             'scrub_url': True,
@@ -394,10 +394,7 @@ class TweetManager(object):
         cleaner = TweetCleaner(
             all_ops=False, user_settings=cleaner_settings)
 
-        if sample:
-            tweet_list = self.rumor_collection.find({'sample': True}, timeout=False)
-        else:
-            tweet_list = self.__find_tweets__()
+        tweet_list = self.__find_tweets__()
         try:
             count = self.compression.find().sort(
                 'db_id', -1).limit(1).next()['db_id'] + 1
@@ -426,7 +423,10 @@ class TweetManager(object):
                         self.compression.insert({'db_id': count,
                          'rumor': self.rumor,
                          'text': text,
-                         'id': [tweet['id']]})
+                         'id': [tweet['id']],
+                         'retweeted_status':{'id':rt_id}}
+                         )
+                        count += 1
 
                     else:
                         self.compression.update({'retweeted_status.id': rt_id},
@@ -434,6 +434,7 @@ class TweetManager(object):
                 else:
                     self.compression.update({'id': rt_id},
                         {'$addToSet': {'id': tweet['id']}})
+
             else:
                 # WIP Code for truncation detection.
                 # truncated = re.search(r'\.\.\.$', text)
