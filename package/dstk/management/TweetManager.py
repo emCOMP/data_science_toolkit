@@ -3,6 +3,7 @@ import csv
 import os
 import json
 import nltk
+from nltk import metrics
 import re
 from dstk.database import utils
 from dstk.database import config
@@ -528,7 +529,7 @@ class TweetManager(object):
 
                 # Check the edit distance between the tweet 'y' and
                 # our new tweet 'tweet'.
-                cur_edit_dist = nltk.metrics.edit_distance(text, y)
+                cur_edit_dist = metrics.edit_distance(text, y)
 
                 # If any of the edit distances are below the threshold
                 # we say the tweet is not unique.
@@ -1073,21 +1074,21 @@ class TweetManager(object):
                             }
                         ]
                      }
-            if int(u['db_id']) == 40:
-                print 'FOUND! (DB_ID)'
+            # if int(u['db_id']) == 40:
+            #     print 'FOUND! (DB_ID)'
 
             compression_mapping = self.compression.find(
                 {'db_id': int(u['db_id'])},
             )
             # Pull the tweet out of the iterator.
             compression_mapping = list(compression_mapping)[0]
-            if "323949024744964097" in compression_mapping['id']:
-                print 'FOUND! (STR)'
-            # Get the list of tweets which are mapped to this tweet.
-            duplicate_ids = map(int ,compression_mapping['id'])
+            # if "323949024744964097" in compression_mapping['id']:
+            #     print 'FOUND! (STR)'
+            # # Get the list of tweets which are mapped to this tweet.
+            # duplicate_ids = map(int ,compression_mapping['id'])
 
-            if 323949024744964097 in duplicate_ids:
-                print 'FOUND! (INT)'
+            # if 323949024744964097 in duplicate_ids:
+            #     print 'FOUND! (INT)'
             # Propagate the codes.
             query = {'id': {'$in': duplicate_ids}}
             self.rumor_collection.update(
