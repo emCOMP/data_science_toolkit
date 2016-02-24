@@ -151,7 +151,7 @@ class TweetCleaner(object):
     # Removes URLs
     def scrub_url(self, text):
         result = re.sub(
-            r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',
+            r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),\|]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',
             u'', text)
         return result
 
