@@ -1085,7 +1085,7 @@ class TweetManager(object):
             # if "323949024744964097" in compression_mapping['id']:
             #     print 'FOUND! (STR)'
             # # Get the list of tweets which are mapped to this tweet.
-            # duplicate_ids = map(int ,compression_mapping['id'])
+            duplicate_ids = map(int ,compression_mapping['id'])
 
             # if 323949024744964097 in duplicate_ids:
             #     print 'FOUND! (INT)'
