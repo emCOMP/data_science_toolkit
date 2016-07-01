@@ -543,8 +543,14 @@ class TweetManager(object):
                 count += 1
                 result.append(tweet['text'])
                 full_tweet = self.rumor_collection.find_one({'id': tweet['id'][0]})
-                # Write the tweet to the file.
-                self.exporter.export_tweet(full_tweet)
+
+
+                if full_tweet:
+                    # Write the tweet to the file.
+                    self.exporter.export_tweet(full_tweet)
+                else:
+                    ## TODO: Proper warning
+                    print 'WARNING: Tweet in Compression Not In RumorDB tweet id: {}'.format(tweet['id'][0])
 
             # If we've achieved the desired 'sample_size', then stop.
             if count >= sample_size:
