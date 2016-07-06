@@ -3,6 +3,7 @@ import csv
 import os
 import json
 import nltk
+from nltk import metrics
 from nltk import edit_distance as ed
 import re
 from dstk.database import utils
@@ -529,7 +530,10 @@ class TweetManager(object):
 
                 # Check the edit distance between the tweet 'y' and
                 # our new tweet 'tweet'.
-                cur_edit_dist = ed(text, y)
+                try:
+                    cur_edit_dist = metrics.edit_distance(text, y)
+                except ValueError:
+                    cur_edit_dist = ed(text, y)
 
                 # If any of the edit distances are below the threshold
                 # we say the tweet is not unique.
