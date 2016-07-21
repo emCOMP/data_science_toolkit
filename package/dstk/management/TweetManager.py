@@ -532,7 +532,7 @@ class TweetManager(object):
                 # our new tweet 'tweet'.
                 try:
                     cur_edit_dist = metrics.edit_distance(text, y)
-                except ValueError:
+                except AttributeError:
                     cur_edit_dist = ed(text, y)
 
                 # If any of the edit distances are below the threshold
@@ -667,7 +667,9 @@ class TweetManager(object):
             # Get the full tweet object from the rumor database.
             # ('tweet' is an object from the compression database so it's
             #   missing some text information)
-            full_tweet = self.rumor_collection.find_one({'id': tweet['id'][0]})
+            ## edit this line to eliminate uncodable codes, add switch
+            full_tweet = self.rumor_collection.find_one({'id': tweet['id'][0],
+                                                         'codes.first_code':{'$in':['Affirm','Deny','Neutral']}})
 
             # If the tweet exists...
             if full_tweet is not None:
