@@ -985,25 +985,26 @@ class TweetManager(object):
                             (taken from coders database)
 
         """
-        # Create the upload_codes object.
-        upload_codes = {
-            'coder_id': coder['coder_id'],
-            'first': codes['first_level'],
-            codes['first_level']: 1
-        }
+        # Create a dictionary which will represent the mongo
+        # "codes" document we want to insert/update.
+        upload_doc = {'coder_id': coder['coder_id']}
+
+        if codes['first_level'] is not None:
+            upload_doc['first'] = codes['first_level']
+            upload_doc[codes['first_level']] = 1
 
         # Format the second level codes:
         second_level = {c: 1 for c in codes['second_level']}
 
         # Add the second level codes into the dictionary.
-        upload_codes.update(second_level)
+        upload_doc.update(second_level)
 
         # Insert the codes into the database.
         self.code_comparison.update(
             {'db_id': db_id},
             {
                 '$setOnInsert': {'text': text},
-                '$addToSet': {'codes': upload_codes}
+                '$addToSet': {'codes': upload_doc}
             },
             upsert=True
         )
