@@ -45,6 +45,7 @@ class TweetManager(object):
         # second level codes (choose any)
         self.second_codes = args.second_level_codes
 
+
         # These are the second-level codes for which
         # we want to adjudicate.
         self.second_level_adj_codes = ['Uncertainty']
@@ -59,6 +60,8 @@ class TweetManager(object):
             )
         else:
             self.skip_second_code = skip_codes
+
+        self.ignore_missing = args.ignore_missing
 
         self.coders_per_tweet = args.coders_per
         self.infer_coder_names = args.infer_coder_names
@@ -1046,7 +1049,7 @@ class TweetManager(object):
                     if self.action == 'upload_coding':
                         # If after going through all of the columns there still
                         # isn't a first level code...
-                        if codes['first_level'] is None:
+                        if not self.ignore_missing and codes['first_level'] is None:
                             # Prompt the user to code the tweet
                             # on the spot.
                             print '\nSheet:', path

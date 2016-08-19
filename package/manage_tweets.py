@@ -100,6 +100,11 @@ if __name__ == '__main__':
         help='Secondary codes (non-mutually exclusive)',
         type=str, required=False,
         nargs='*', default=['Uncertainty', 'Ambiguity', 'Implicit'])
+    coding.add_argument(
+        '-im', '--ignore_missing',
+        type=bool,
+        help='Ignore missing first-leve-codes',
+        action='store_true')
 
     output = parser.add_argument_group('Output Options')
     output.add_argument(
