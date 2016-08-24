@@ -102,7 +102,6 @@ if __name__ == '__main__':
         nargs='*', default=['Uncertainty', 'Ambiguity', 'Implicit'])
     coding.add_argument(
         '-im', '--ignore_missing',
-        type=bool,
         help='Ignore missing first-leve-codes',
         action='store_true')
 
